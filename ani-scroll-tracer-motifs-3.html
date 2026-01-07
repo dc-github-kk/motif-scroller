@@ -1,0 +1,4399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>Scroll Tracer with Gap Motifs + Overlays</title>
+
+    <style>
+        body {
+            margin: 0;
+            background: #f9f9f9;
+            height: 8000px;
+        }
+        .block {
+            width: 80%;
+            height: 250px;
+            margin: 100px auto;
+            border-radius: 8px;
+        }
+        .block:nth-child(1) { background: #ff9999; }
+        .block:nth-child(2) { background: #99ccff; }
+        .block:nth-child(3) { background: #99ff99; }
+        .block:nth-child(4) { background: #ffcc99; }
+        .block:nth-child(5) { background: #cc99ff; }
+
+        svg#overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+
+            width: 100vw;
+
+            z-index: 3;
+
+            pointer-events: none;
+
+            /* matches body height */
+            /* parent in this demo is html */
+            /*height: 100%;*/
+
+        }
+
+        svg path#deco-path {
+            stroke: purple;
+            stroke-width: 4px;
+            fill: none;
+            opacity: 0.5;
+        }
+
+        svg path#deco-path-2 {
+            stroke: green;
+            stroke-width: 4px;
+            fill: none;
+            opacity: 0.65;
+        }
+
+        svg path#motif-heart-health-overlay {
+            stroke: lightblue;
+            stroke-width: 2px;
+            fill: none;
+        }
+
+        svg path#motif-heart-health-normalized {
+            stroke: blue;
+            stroke-width: 2px;
+            fill: none;
+        }
+
+        svg path#tracer {
+            stroke: blue;
+            stroke-width: 7px;
+            fill: none;
+        }
+
+        path#skeleton { stroke: red; stroke-width: 4; fill: none; opacity: 0.35; }
+        path#curvy-tracer { stroke: blue; stroke-width: 6; fill: none; }
+
+        .motif { stroke: green; stroke-width: 4; fill: none; opacity: 0.9; }
+        .gapOverlay { fill: orange; opacity: 2px; pointer-events: none; }
+
+
+        svg#tracer-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+
+            /* Match your layout width OR stretch to viewport width */
+            width: 100vw;          /* recommended for device adaptation */
+            height: 100vh;         /* always fill the visible viewport */
+
+            pointer-events: none;  /* tracer never blocks touches */
+
+            /* Ensures the viewBox stretches to fill the CSS box */
+            display: block;
+
+            z-index: 4;
+
+        }
+
+        svg#tracer-overlay path {
+            stroke-width:8px;
+            vector-effect: non-scaling-stroke; /* keeps stroke width consistent */
+        }
+
+
+    </style>
+</head>
+<body>
+
+<svg id="overlay" viewBox="0 0 1000 8000" preserveAspectRatio="none">
+
+    <path id="skeleton"/>
+    <path id="curvy-base"/>
+    <path id="deco-path"/>
+    <path id="tracer"/>
+    <path id="tracer-test" stroke="red" fill="none" stroke-width="6" />
+<!--    <circle id="probe" r="10" fill="red" />-->
+
+<!--    <path id="tracer-segment">-->
+
+        <defs>
+            <path id="motifHeart" d="M10,30 C20,10 40,10 50,30 C60,10 80,10 90,30 C90,60 50,90 50,90 C50,90 10,60 10,30 Z" />
+            <path id="motifHouse" d="M10,80 L50,20 L90,80 Z M30,80 V50 H70 V80 Z" />
+            <path id="motifCar" d="M10,70 L90,70 L80,50 L20,50 Z M25,70 A10,10 0 1,0 25,90 A10,10 0 1,0 25,70 Z" />
+        </defs>
+
+</svg>
+
+<div class="block"></div>
+<div class="block"></div>
+<div class="block"></div>
+<div class="block"></div>
+<div class="block"></div>
+
+
+
+<svg id="tracer-overlay" preserveAspectRatio="none">
+    <path id="tracer-segment"
+          stroke="green"
+          stroke-width="8"
+          fill="none"
+          stroke-linecap="round" />
+</svg>
+
+<!-- NEW WRAPPER AROUND overlay -->
+<!--<div id="overlay-container">-->
+
+
+<!--</div>-->
+
+<!--  https://medium.com/thebrand/bezier-animations-ui-elements-to-flutter-widgets-part-1-95c04b6ba1c4 -->
+<!--  https://itchylabs.com/tools/path-to-bezier/?utm_source=copilot.com  -->
+<svg id="motif-1"  xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100">
+    <title>motif-heart-health</title>
+<!--    <path id="motif-heart-health-normalized" d="M99.93 88.78C96.41 88.78 91.46 88.78 86.67 88.78C82.05 88.78 77.27 88.78 73.83 88.78L66.71 88.78C62.04 88.78 57.24 88.78 52.33 88.92C58.61 82.64 65 76.14 71.2 69.85C78 63 85 55.87 91.82 49C102.741 37.981 102.741 20.219 91.82 9.2C86.578 3.923 79.438 0.97 72 1L72 1C64.56 0.99 57.427 3.965 52.2 9.26C50.951 10.457 48.979 10.457 47.73 9.26C37.603 -0.981 21.331 -1.788 10.24 7.4C-1.696 17.271 -3.446 34.918 6.32 46.94L6.51 47.17L14.88 47.17L28.51 23.56C29.342 22.101 31.172 21.551 32.67 22.31C33.418 22.691 33.986 23.353 34.25 24.15L43.55 52.5L53.88 34C54.442 33.014 55.485 32.401 56.62 32.39C57.751 32.374 58.802 32.976 59.36 33.96L67.13 47.2L76.63 47.2C78.314 47.295 79.632 48.688 79.632 50.375C79.632 52.062 78.314 53.455 76.63 53.55L65.32 53.55C64.204 53.546 63.172 52.958 62.6 52L56.7 41.83L45.45 61.83C44.888 62.82 43.838 63.431 42.7 63.43L42.39 63.43C41.152 63.311 40.1 62.477 39.7 61.3L30.4 32.92L19.5 51.92C18.933 52.898 17.891 53.503 16.76 53.51L12.76 53.51L47.38 89C43.67 89 39.94 89 36.31 89C33.57 89 30.81 88.93 28 88.93C20.21 88.93 9.22 88.93 1.2 88.85L0.3 88.85" fill="none" stroke="#000" stroke-miterlimit="10"></path>-->
+
+    <defs>
+        <path id="motif-heart-health" d="M99.93,88.78c-3.52,0-8.47,0-13.26,0-4.62,0-9.4,0-12.84,0l-7.12,0c-4.67,0-9.47,0-14.38.14C58.61,82.64,65,76.14,71.2,69.85,78,63,85,55.87,91.82,49a28.27,28.27,0,0,0,0-39.8A27.78,27.78,0,0,0,72,1h0a27.77,27.77,0,0,0-19.8,8.26,3.23,3.23,0,0,1-4.47,0A27.79,27.79,0,0,0,10.24,7.4,28.22,28.22,0,0,0,6.32,46.94l.19.23h8.37L28.51,23.56a3.15,3.15,0,0,1,4.16-1.25,3.19,3.19,0,0,1,1.58,1.84l9.3,28.35L53.88,34a3.19,3.19,0,0,1,2.74-1.61,3.1,3.1,0,0,1,2.74,1.57l7.77,13.24h9.5a3.18,3.18,0,0,1,0,6.35H65.32A3.18,3.18,0,0,1,62.6,52L56.7,41.83l-11.25,20a3.16,3.16,0,0,1-2.75,1.6h-.31a3.16,3.16,0,0,1-2.69-2.13L30.4,32.92l-10.9,19a3.19,3.19,0,0,1-2.74,1.59h-4L47.38,89c-3.71,0-7.44,0-11.07,0-2.74,0-5.5-.07-8.31-.07-7.79,0-18.78,0-26.8-.08H.3" fill="none" stroke="#000" stroke-miterlimit="10"/>
+         <!--  absolute internal svg commands (all cmds are uppercase letters -->
+        <path id="motif-heart-health-absolute" d="M99.93,88.78 C96.41,88.78 91.46,88.78 86.67,88.78 C82.05,88.78 77.27,88.78 73.83,88.78 L66.71,88.78 C62.04,88.78 57.24,88.78 52.33,88.92 C58.61,82.64 65,76.14 71.2,69.85 C78,63 85,55.87 91.82,49 A28.27 28.27 0 0 0 91.82,9.2 A27.78 27.78 0 0 0 72,1 L72,1 A27.77 27.77 0 0 0 52.2,9.26 A3.23 3.23 0 0 1 47.73,9.26 A27.79 27.79 0 0 0 10.24,7.4 A28.22 28.22 0 0 0 6.32,46.94 L6.51,47.17 L14.88,47.17 L28.51,23.56 A3.15 3.15 0 0 1 32.67,22.31 A3.19 3.19 0 0 1 34.25,24.15 L43.55,52.5 L53.88,34 A3.19 3.19 0 0 1 56.62,32.39 A3.1 3.1 0 0 1 59.36,33.96 L67.13,47.2 L76.63,47.2 A3.18 3.18 0 0 1 76.63,53.55 L65.32,53.55 A3.18 3.18 0 0 1 62.6,52 L56.7,41.83 L45.45,61.83 A3.16 3.16 0 0 1 42.7,63.43 L42.39,63.43 A3.16 3.16 0 0 1 39.7,61.3 L30.4,32.92 L19.5,51.92 A3.19 3.19 0 0 1 16.76,53.51 L12.76,53.51 L47.38,89 C43.67,89 39.94,89 36.31,89 C33.57,89 30.81,88.93 28,88.93 C20.21,88.93 9.22,88.93 1.2,88.85 L0.3,88.85" fill="none" stroke="#000" stroke-miterlimit="10"></path>
+        <path id="motif-heart-health-absolute-cubic" fill="none" stroke="#000" stroke-miterlimit="10"></path>
+        <path id="motif-heart-health-normalized" d="M99.93 88.78C96.41 88.78 91.46 88.78 86.67 88.78C82.05 88.78 77.27 88.78 73.83 88.78L66.71 88.78C62.04 88.78 57.24 88.78 52.33 88.92C58.61 82.64 65 76.14 71.2 69.85C78 63 85 55.87 91.82 49C102.741 37.981 102.741 20.219 91.82 9.2C86.578 3.923 79.438 0.97 72 1L72 1C64.56 0.99 57.427 3.965 52.2 9.26C50.951 10.457 48.979 10.457 47.73 9.26C37.603 -0.981 21.331 -1.788 10.24 7.4C-1.696 17.271 -3.446 34.918 6.32 46.94L6.51 47.17L14.88 47.17L28.51 23.56C29.342 22.101 31.172 21.551 32.67 22.31C33.418 22.691 33.986 23.353 34.25 24.15L43.55 52.5L53.88 34C54.442 33.014 55.485 32.401 56.62 32.39C57.751 32.374 58.802 32.976 59.36 33.96L67.13 47.2L76.63 47.2C78.314 47.295 79.632 48.688 79.632 50.375C79.632 52.062 78.314 53.455 76.63 53.55L65.32 53.55C64.204 53.546 63.172 52.958 62.6 52L56.7 41.83L45.45 61.83C44.888 62.82 43.838 63.431 42.7 63.43L42.39 63.43C41.152 63.311 40.1 62.477 39.7 61.3L30.4 32.92L19.5 51.92C18.933 52.898 17.891 53.503 16.76 53.51L12.76 53.51L47.38 89C43.67 89 39.94 89 36.31 89C33.57 89 30.81 88.93 28 88.93C20.21 88.93 9.22 88.93 1.2 88.85L0.3 88.85" fill="none" stroke="#000" stroke-miterlimit="10"></path>
+    </defs>
+</svg>
+
+<script src="https://cdn.jsdelivr.net/npm/svg-parse-path-normalized@1.1.0/js/pathDataParseNormalized.min.js"></script>
+
+
+
+<script>
+// import parsePathNormalized, { pathDataToD }
+    //     from 'https://cdn.jsdelivr.net/npm/svg-parse-path-normalized@1.1.0/+esm';
+
+    // import parsePathNormalized
+    //     from 'https://cdn.jsdelivr.net/npm/svg-parse-path-normalized@1.1.0/+esm';
+
+    // import * as svgParsePathNormalized
+    //     from "https://cdn.jsdelivr.net/npm/svg-parse-path-normalized@1.1.0/+esm";
+
+    // The module exports an object with keys like parseD, parsePathDataNormalized, pathDataToD.
+    // Use the right one:
+    // const { parsePathDataNormalized, pathDataToD } = svgParsePathNormalized;
+
+    // Inspect what the module actually exports
+    // console.log(svgParsePathNormalized);
+
+    // The function you want is available as svgParsePathNormalized.default
+    // or as svgParsePathNormalized.parsePathDataNormalized depending on the build.
+    // const parseLib = svgParsePathNormalized.default
+    //     || svgParsePathNormalized.parsePathDataNormalized;
+    //
+    // const { parsePathDataNormalized, pathDataToD } = parseLib;
+
+    // const pathDataToD = svgParsePathNormalized.pathDataToD;
+
+    console.log('parsePathDataNormalized', parsePathDataNormalized);
+    console.log('pathDataToD', pathDataToD);
+
+    /**
+     * Convert a <path> element's d attribute to absolute commands,
+     * with arcs converted to cubic segments, and append a clone
+     * with id suffixed "-absolute".
+     *
+     * @param {string} inputId - id of the existing <path> element
+     * @param {object} opts - options: { decimals, minify, diagnostics, replaceOriginal, appendTo }
+     * @returns {SVGPathElement|null} the new cloned path
+     */
+    function convertPathNormalized(inputId, opts = {}) {
+
+        const decimals = typeof opts.decimals === 'number' ? opts.decimals : 3;
+        const minify = !!opts.minify;
+        const diagnostics = !!opts.diagnostics;
+        const replaceOriginal = !!opts.replaceOriginal;
+
+        const src = document.getElementById(inputId);
+        if (!src || src.tagName.toLowerCase() !== 'path') {
+            if (diagnostics) console.error('Source path not found or not a <path>', inputId);
+            return null;
+        }
+
+        const d = src.getAttribute('d') || '';
+        if (!d) {
+            if (diagnostics) console.error('Source path has no d attribute');
+            return null;
+        }
+
+        if (diagnostics) console.log('Original d snippet:', d.slice(0, 200));
+
+        // Parse and normalize (absolute commands, shorthand expanded).
+        let pathData;
+
+        try {
+
+            let optionsNormalize = {
+                normalize: null,          //shorthand for aggressive normalisation
+                toAbsolute: true,         //necessary for most calculations
+                unshort: true,            //dito
+                arcToCubic: true,        //
+                quadraticToCubic: false,  //frankly, not necessary most of the time
+                lineToCubic: false,       //handy for morphing animations
+                debug: false,             //handy to detect malformed pathdata retrieved from user inputs
+                decimals: -1              //-1=no rounding
+            }
+
+            pathData = parsePathDataNormalized(d, optionsNormalize);
+
+        } catch (err) {
+            if (diagnostics) console.error('parsePathDataNormalized failed:', err);
+            return null;
+        }
+
+        // let d = pathData.toD(decimals, minify)
+        // Stringify back to d string (arcs converted to cubic segments).
+        let finalD;
+
+        try {
+            if (typeof pathData.toD === 'function') {
+                finalD = pathData.toD(decimals, minify);
+            } else {
+                finalD = pathDataToD(pathData, decimals, minify);
+            }
+        } catch (err) {
+            if (diagnostics) console.warn('Stringify failed, falling back to original d:', err);
+            finalD = d;
+        }
+
+        if (diagnostics) console.log('Final d snippet:', finalD.slice(0, 200));
+
+        // Create clone with suffix "-normalized" (ensure unique id).
+        const baseNewId = `${inputId}-normalized`;
+        let newId = baseNewId;
+        let counter = 1;
+        while (document.getElementById(newId)) {
+            newId = `${baseNewId}-${counter++}`;
+        }
+
+        const clone = src.cloneNode(true);
+        clone.setAttribute('id', newId);
+        clone.setAttribute('d', finalD);
+
+        const parent = opts.appendTo instanceof Element ? opts.appendTo : src.parentNode;
+
+        if (replaceOriginal) parent.replaceChild(clone, src);
+        else parent.appendChild(clone);
+
+        return clone;
+    }
+
+    // Expose globally for quick use
+    window.convertPathNormalized = convertPathNormalized;
+
+    const newPath = convertPathNormalized('motif-heart-health', {
+        decimals: 3,
+        minify: false,
+        diagnostics: true
+    });
+
+    /* Example usage:
+    const newPath = convertPathToAbsoluteSuffix('motif-heart-health', {
+      decimals: 3,
+      minify: true,
+      diagnostics: true
+    });
+    console.log('Created:', newPath && newPath.id);
+    */
+</script>
+
+<script>
+
+    window.onload = function() {
+
+        // setTimeout(function() {
+        //     const newPath = window.convertPathNormalized('motif-heart-health', {
+        //         decimals: 3,
+        //         minify: false,
+        //         diagnostics: true
+        //     });
+        // }, 100);
+    };
+
+</script>
+
+  <script type="module">
+
+    // 🔹Part 1: Setup, motif helpers, transform function
+
+    import { animate, onScroll } from "https://cdn.jsdelivr.net/npm/animejs@4.2.2/+esm";
+    // import { onScroll } from "https://cdn.jsdelivr.net/npm/animejs@4.2.2/+esm";
+
+    const skeletonPath = document.getElementById('skeleton');
+    const curvyTracer = document.getElementById('curvy-tracer');
+    const svg = document.querySelector("svg");
+
+    let tracerCleanup = null;
+
+    const motifs = {
+        heart: document.getElementById('motifHeart').getAttribute('d'),
+        house: document.getElementById('motifHouse').getAttribute('d'),
+        car: document.getElementById('motifCar').getAttribute('d')
+    };
+
+    function chooseMotif(gapIndex, gapHeight) {
+        if (gapHeight > 900) return motifs.car;
+        if (gapIndex % 2 === 0) return motifs.heart;
+        return motifs.house;
+    }
+
+
+    // 🔹 Part 2: Build paths, tracer setup, event hooks
+    // test 18
+
+    // --- resizeSVG: fit SVG to visual viewport width + scroll height ---
+
+    function resizeSVG() {
+        const svg = document.getElementById('overlay');
+        if (!svg) {
+            console.warn('[skeleton] resizeSVG aborted: no <svg id="overlay"> found');
+            return;
+        }
+
+        const scrollHeight = document.documentElement.scrollHeight;
+        const viewWidth = window.visualViewport ? window.visualViewport.width : window.innerWidth;
+
+        // Direct mapping: SVG units = CSS pixels
+        svg.setAttribute('viewBox', `0 0 ${viewWidth} ${scrollHeight}`);
+
+        // Stretch SVG element to match viewport width and full scroll height
+        svg.style.width = viewWidth + 'px';
+        svg.style.height = scrollHeight + 'px';
+
+        // Pin overlay
+        svg.style.position = 'absolute';
+        svg.style.top = '0';
+        svg.style.left = '0';
+        // svg.style.pointerEvents = 'none';
+
+        console.log('[skeleton] resizeSVG applied', {
+            viewBox: svg.getAttribute('viewBox'),
+            cssWidth: svg.style.width,
+            cssHeight: svg.style.height,
+            viewportWidth: viewWidth,
+            documentScrollHeight: scrollHeight
+        });
+
+        resizeTracerOverlay();
+
+    }
+
+
+    function resizeTracerOverlay() {
+        const svg = document.getElementById('tracer-overlay');
+        if (!svg) return;
+
+        // Viewport‑true coordinate system
+        svg.setAttribute('viewBox', `0 0 ${window.innerWidth} ${window.innerHeight}`);
+
+        console.log('[skeleton] resizeTracerOverlay applied', {
+            viewBox: svg.getAttribute('viewBox'),
+            viewportWidth: window.innerWidth,
+            viewportHeight: window.innerHeight
+        });
+    }
+
+    // --- buildSkeleton: compute points, draw markers, emit path ---
+
+    function buildSkeleton(minGapSize = 50) {
+        const svg = document.getElementById('overlay');
+        const pathEl = document.getElementById('skeleton');
+        const blocks = document.querySelectorAll('.block');
+
+        if (!svg || !pathEl || blocks.length === 0) return;
+
+        const viewWidth = window.visualViewport ? window.visualViewport.width : window.innerWidth;
+        const L = Math.round(viewWidth * 0.05);
+        const R = Math.round(viewWidth * 0.95);
+
+        const rects = Array.from(blocks).map(b => {
+            const r = b.getBoundingClientRect();
+            return {
+                top: Math.round(r.top + window.scrollY),
+                bottom: Math.round(r.bottom + window.scrollY)
+            };
+        });
+
+        let laneX = R;
+        const points = [{ x: laneX, y: rects[0].top, label: 'start block0 top' }];
+        const gaps = {}; // registry of gap tolerances
+
+        for (let i = 0; i < rects.length; i++) {
+            const cur = rects[i];
+            const hasNext = i < rects.length - 1;
+
+            if (hasNext) {
+                const gapSize = rects[i + 1].top - cur.bottom;
+                const mid = cur.bottom + Math.round(gapSize / 2);
+
+                points.push({ x: laneX, y: mid, label: `block${i} → gap${i} midpoint` });
+
+                if (gapSize >= minGapSize) {
+                    const newLane = (laneX === R) ? L : R;
+                    points.push({ x: newLane, y: mid, label: `traverse at gap${i} midpoint` });
+                    laneX = newLane;
+                    gaps[`gap${i}`] = { size: gapSize, tol: gapSize * 0.4 };
+                } else {
+                    gaps[`gap${i}`] = { size: gapSize, tol: null };
+                }
+            } else {
+                points.push({ x: laneX, y: cur.bottom, label: `block${i} → bottom` });
+            }
+        }
+
+        // Emit skeleton path
+        let d = `M${points[0].x} ${points[0].y}`;
+        for (let i = 1; i < points.length; i++) {
+            d += ` L${points[i].x} ${points[i].y}`;
+        }
+
+        // place the skeleton into the svg
+        // to make it visible
+        // pathEl.setAttribute('d', d);
+
+        // ✅ NEW STRUCTURES BEGIN HERE
+        const segments = [];
+        const horizontalRuns = [];
+        const motifSlots = [];
+
+        let gapIndex = 0;
+
+        for (let i = 1; i < points.length; i++) {
+            const prev = points[i - 1];
+            const curr = points[i];
+
+            const dx = curr.x - prev.x;
+            const dy = curr.y - prev.y;
+            const length = Math.sqrt(dx * dx + dy * dy);
+
+            const isHorizontal = dy === 0;
+            const isVertical = dx === 0;
+
+            const gapInfo = isHorizontal ? gaps[`gap${gapIndex}`] : null;
+            if (isHorizontal) gapIndex++;
+
+            const segment = {
+                index: i - 1,
+                start: prev,
+                end: curr,
+                dx,
+                dy,
+                length,
+                isHorizontal,
+                isVertical,
+                gapIndex: isHorizontal ? gapIndex : null,
+                gapInfo
+            };
+
+            segments.push(segment);
+
+            if (isHorizontal) {
+                horizontalRuns.push({
+                    segmentIndex: i - 1,
+                    start: prev,
+                    end: curr,
+                    width: Math.abs(dx),
+                    gapIndex: gapIndex,
+                    gapInfo
+                });
+
+                if (gapInfo && gapInfo.tol !== null) {
+                    motifSlots.push({
+                        segmentIndex: i - 1,
+                        start: prev,
+                        end: curr,
+                        width: Math.abs(dx),
+                        gapIndex: gapIndex,
+                        gapInfo,
+                        motifId: null // user can assign later
+                    });
+                }
+            }
+        }
+
+        console.log('[skeleton] Points:', points);
+        console.log('[skeleton] Gap registry:', gaps);
+        console.log('[skeleton] Segments:', segments);
+        console.log('[skeleton] Horizontal runs:', horizontalRuns);
+        console.log('[skeleton] Motif slots:', motifSlots);
+
+        return {
+            points,
+            gaps,
+            rects,
+
+            // ✅ NEW STRUCTURES, to support motifs
+            segments,
+            horizontalRuns,
+            motifSlots
+        };
+    }
+
+    function buildCurvyPath(
+        skeletonData,
+        sideWidth = 50,
+        waveSpacingH = 80,
+        waveSpacingV = 20,
+        outputId = "curvy-base"   // ✅ NEW
+    ) {
+        const pathEl = document.getElementById(outputId);   // ✅ UPDATED
+        if (!skeletonData || !pathEl) return;
+
+        const { points, gaps } = skeletonData;
+        const sideTol = sideWidth * 0.4;
+
+        let path = `M${points[0].x} ${points[0].y}`;
+        let gapIndex = 0;
+
+        for (let i = 1; i < points.length; i++) {
+            const prev = points[i - 1];
+            const curr = points[i];
+            const dx = curr.x - prev.x;
+            const dy = curr.y - prev.y;
+
+            if (dx === 0) {
+                // Vertical run → waves
+                const length = Math.abs(dy);
+                const waves = Math.max(1, Math.floor(length / waveSpacingV));
+                const step = dy / waves;
+
+                for (let w = 1; w <= waves; w++) {
+                    const y = prev.y + step * w;
+                    const ctrlX = prev.x + (w % 2 === 0 ? sideTol : -sideTol);
+                    path += ` Q${ctrlX} ${prev.y + step * (w - 0.5)} ${curr.x} ${y}`;
+                }
+
+            } else if (dy === 0) {
+                // Horizontal run → waves
+                const gapInfo = gaps[`gap${gapIndex}`];
+                gapIndex++;
+
+                if (gapInfo && gapInfo.tol !== null) {
+                    const length = Math.abs(dx);
+                    const waves = Math.max(1, Math.floor(length / waveSpacingH));
+                    const step = dx / waves;
+
+                    for (let w = 1; w <= waves; w++) {
+                        const x = prev.x + step * w;
+                        const ctrlY = prev.y + (w % 2 === 0 ? gapInfo.tol : -gapInfo.tol);
+                        path += ` Q${prev.x + step * (w - 0.5)} ${ctrlY} ${x} ${prev.y}`;
+                    }
+                } else {
+                    path += ` L${curr.x} ${curr.y}`;
+                }
+
+            } else {
+                // Diagonal fallback
+                path += ` L${curr.x} ${curr.y}`;
+            }
+        }
+
+        // ✅ Write to the chosen path element
+        pathEl.setAttribute('d', path);
+        pathEl.setAttribute('stroke', 'blue');
+        pathEl.setAttribute('fill', 'none');
+        pathEl.setAttribute('stroke-width', '2');
+    }
+
+    function initTracer_save(segmentLength = 150) {
+
+        const tracer = document.querySelector('#tracer');
+        const svg = document.querySelector('#overlay');
+
+        if (!tracer || !svg) {
+            console.error('Required elements not found');
+            return;
+        }
+
+        // ✅ Try deco-path first
+        const decoPath = document.querySelector('#deco-path');
+        const curvyBase = document.querySelector('#curvy-base');
+
+        // ✅ Choose the correct path element
+        let pathEl = null;
+
+        if (decoPath && decoPath.getAttribute('d')) {
+            pathEl = decoPath;
+            console.log("Tracer using deco-path");
+        } else if (curvyBase && curvyBase.getAttribute('d')) {
+            pathEl = curvyBase;
+            console.log("Tracer using curvy-base");
+        } else {
+            console.error("No valid path found for tracer");
+            return;
+        }
+
+        // ✅ Get the path definition and length
+        const pathData = pathEl.getAttribute('d');
+        const pathLength = pathEl.getTotalLength();
+
+        console.log('Path length:', pathLength, 'Segment length:', segmentLength);
+
+        // ✅ Copy the path to the tracer
+        tracer.setAttribute('d', pathData);
+        tracer.setAttribute('stroke', 'green');
+        tracer.setAttribute('stroke-width', '2');
+        tracer.setAttribute('fill', 'none');
+        tracer.setAttribute('stroke-linecap', 'round');
+
+        // ✅ Set up stroke-dasharray
+        // tracer.style.strokeDasharray = `${segmentLength} ${pathLength}`;
+        tracer.style.strokeDasharray = `${segmentLength} ${pathLength - segmentLength}`;
+
+
+        // ✅ PRE-CALCULATE path metrics with slope detection
+        const samples = 300;
+        const pathMetrics = [];
+
+        for (let i = 0; i <= samples; i++) {
+            const pos = (i / samples) * pathLength;
+            const point = pathEl.getPointAtLength(pos);
+
+            // Calculate slope
+            let slope = 1;
+            if (i < samples) {
+                const nextPos = ((i + 1) / samples) * pathLength;
+                const nextPoint = pathEl.getPointAtLength(nextPos);
+                const dy = Math.abs(nextPoint.y - point.y);
+                const dx = Math.abs(nextPoint.x - point.x);
+                slope = dy / (dx + 0.001);
+            }
+
+            pathMetrics.push({ pos, y: point.y, x: point.x, slope });
+        }
+
+        // ✅ Smooth slopes
+        const smoothWindow = 15;
+        const smoothedMetrics = pathMetrics.map((metric, i) => {
+            let sum = 0;
+            let count = 0;
+            for (let j = Math.max(0, i - smoothWindow); j <= Math.min(pathMetrics.length - 1, i + smoothWindow); j++) {
+                sum += pathMetrics[j].slope;
+                count++;
+            }
+            return { ...metric, smoothSlope: sum / count };
+        });
+
+        console.log('Path metrics calculated:', smoothedMetrics.length, 'samples');
+
+        // ✅ Starting point
+        const pathStart = pathEl.getPointAtLength(0);
+        console.log('Path starts at Y:', pathStart.y);
+
+        // ✅ Horizontal boost logic (unchanged)
+        function findPathPositionAtY(targetY) {
+            let closestDistance = Infinity;
+            let closestIndex = 0;
+
+            for (let i = 0; i < smoothedMetrics.length; i++) {
+                const distance = Math.abs(smoothedMetrics[i].y - targetY);
+                if (distance < closestDistance) {
+                    closestDistance = distance;
+                    closestIndex = i;
+                }
+            }
+
+            const horizontalThreshold = 0.5;
+            const boostMultiplier = 45;
+            const lookAheadRange = 70;
+
+            let adjustedIndex = closestIndex;
+            const currentSlope = smoothedMetrics[closestIndex].smoothSlope;
+
+            let minDistanceToVertical = Infinity;
+
+            for (let i = closestIndex; i < Math.min(smoothedMetrics.length, closestIndex + lookAheadRange); i++) {
+                if (smoothedMetrics[i].smoothSlope > horizontalThreshold * 1.5) {
+                    minDistanceToVertical = i - closestIndex;
+                    break;
+                }
+            }
+
+            const approachingVertical = minDistanceToVertical < lookAheadRange;
+
+            if (currentSlope < horizontalThreshold) {
+                const flatness = (horizontalThreshold - currentSlope) / horizontalThreshold;
+                let boost = flatness * boostMultiplier;
+
+                if (approachingVertical) {
+                    const transitionProgress = minDistanceToVertical / lookAheadRange;
+
+                    const easedTransition = transitionProgress < 0.5
+                        ? 4 * transitionProgress * transitionProgress * transitionProgress
+                        : 1 - Math.pow(-2 * transitionProgress + 2, 3) / 2;
+
+                    boost = boost * easedTransition;
+                }
+
+                adjustedIndex = Math.min(smoothedMetrics.length - 1, closestIndex + Math.floor(boost));
+            }
+
+            return smoothedMetrics[adjustedIndex].pos;
+        }
+
+        // ✅ Scroll animation logic (unchanged)
+        const viewBox = svg.viewBox.baseVal;
+        const svgHeight = viewBox.height;
+        const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+
+        const marginTop = 0;
+        const marginBottom = 0;
+
+        const animation = onScroll({
+            targets: tracer,
+            strokeDashoffset: {
+                value: [0, -pathLength],
+                scroll: {
+                    container: window,
+                    axis: "y",
+                    from: marginTop,
+                    to: maxScroll - marginBottom
+                }
+            },
+            easing: "linear",
+            autoplay: true,
+            onUpdate: (anim) => {
+                const scrollY = window.scrollY;
+                const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+                const scrollProgress = Math.min(Math.max(scrollY / docHeight, 0), 1);
+
+                const currentY = pathStart.y + (scrollProgress * (svgHeight - pathStart.y));
+
+                const pathPosition = findPathPositionAtY(currentY);
+
+                const offset = pathLength - pathPosition + (segmentLength / 2);
+                tracer.style.strokeDashoffset = offset;
+            }
+        });
+
+        console.log('Tracer initialized with Anime.js v4 and slope-aware positioning');
+
+        return () => {
+            if (animation && animation.pause) {
+                animation.pause();
+            }
+        };
+    }
+
+
+    // Tracer animation with progress-based + adaptive speed
+
+    function runTracerAnimation_save_claude(state) {
+        if (!state) return;
+
+        const { tracer, pathEl, pathLength, segmentLength } = state;
+
+        // Configuration
+        const TARGET_VIEWPORT_POSITION = 0.5; // Target: center of viewport (0 = top, 1 = bottom)
+        const SPEED_MULTIPLIER = 2.0; // How aggressively to adjust speed
+        const MIN_PLAYBACK_RATE = 0.3;
+        const MAX_PLAYBACK_RATE = 3.0;
+
+        // Get path start point to initialize properly
+        const pathStart = pathEl.getPointAtLength(0);
+
+        // Initialize tracer at the start of the path
+        const initialOffset = pathLength + (segmentLength / 2);
+        tracer.style.strokeDashoffset = initialOffset;
+
+        // Create the base tracer animation
+        const tracerAnim = animate(tracer, {
+            strokeDashoffset: [initialOffset, -(pathLength - segmentLength / 2)],
+            ease: 'linear',
+            autoplay: false
+        });
+
+        // Scroll observer with dynamic speed based on viewport position
+        const scrollObserver = onScroll({
+            container: window,
+            target: tracer,
+            axis: 'y',
+            // Start tracking from the very top
+            enter: 'top top',
+            leave: 'bottom bottom',
+            sync: 0.25,
+            debug: true,
+
+            onUpdate: (observer) => {
+                const progress = observer.progress; // 0–1
+                const pathPosition = progress * pathLength;
+                const point = pathEl.getPointAtLength(pathPosition);
+
+                // Calculate tracer's Y position in document coordinates
+                // point.y is already in SVG coordinate space, which matches document space
+                // because the SVG viewBox is sized to match the document
+                const tracerDocumentY = point.y;
+
+                // Calculate tracer's position relative to current viewport
+                const scrollY = window.scrollY;
+                const tracerScreenY = tracerDocumentY - scrollY;
+
+                // Calculate tracer's position in viewport (0 = top, 1 = bottom)
+                const viewportHeight = window.innerHeight;
+                const tracerViewportPosition = tracerScreenY / viewportHeight;
+
+                // Calculate deviation from target (positive = below center, negative = above)
+                const deviation = tracerViewportPosition - TARGET_VIEWPORT_POSITION;
+
+                // Adjust playback rate based on deviation
+                // If above center (negative deviation): slow down to let it drift down
+                // If below center (positive deviation): speed up to catch up
+                let playbackRate = 1.0 + (deviation * SPEED_MULTIPLIER);
+                playbackRate = Math.max(MIN_PLAYBACK_RATE, Math.min(MAX_PLAYBACK_RATE, playbackRate));
+
+                // Apply the dynamic playback rate
+                tracerAnim.playbackRate = playbackRate;
+
+                // Update visual position
+                const offset = pathLength - pathPosition + (segmentLength / 2);
+                tracer.style.strokeDashoffset = offset;
+
+                console.log(
+                    `[Tracer] progress=${progress.toFixed(3)}, ` +
+                    `docY=${tracerDocumentY.toFixed(1)}, ` +
+                    `screenY=${tracerScreenY.toFixed(1)}, ` +
+                    `viewportPos=${tracerViewportPosition.toFixed(2)}, ` +
+                    `deviation=${deviation.toFixed(2)}, ` +
+                    `speed=${playbackRate.toFixed(2)}`
+                );
+            }
+        });
+
+        // Link tracer animation to scroll observer
+        scrollObserver.link(tracerAnim);
+
+        console.log('Tracer animation started with dynamic viewport-centered speed (Anime.js v4)');
+        console.log(`Path starts at Y: ${pathStart.y}, Path length: ${pathLength}`);
+    }
+
+    function initTracer_save_123025(segmentLength = 150) {
+        const tracer = document.querySelector('#tracer');
+        const svg = document.querySelector('#overlay');
+
+        if (!tracer || !svg) {
+            console.error('Required elements not found');
+            return null;
+        }
+
+        const decoPath = document.querySelector('#deco-path');
+        const curvyBase = document.querySelector('#curvy-base');
+
+        let pathEl = null;
+        if (decoPath && decoPath.getAttribute('d')) {
+            pathEl = decoPath;
+            console.log("Tracer using deco-path");
+        } else if (curvyBase && curvyBase.getAttribute('d')) {
+            pathEl = curvyBase;
+            console.log("Tracer using curvy-base");
+        } else {
+            console.error("No valid path found for tracer");
+            return null;
+        }
+
+        const pathData = pathEl.getAttribute('d');
+        const pathLength = pathEl.getTotalLength();
+
+        tracer.setAttribute('d', pathData);
+        tracer.setAttribute('stroke', 'green');
+        tracer.setAttribute('stroke-width', '2');
+        tracer.setAttribute('fill', 'none');
+        tracer.setAttribute('stroke-linecap', 'round');
+        tracer.style.strokeDasharray = `${segmentLength} ${pathLength - segmentLength}`;
+
+        return {
+            tracer,
+            svg,
+            pathEl,
+            pathLength,
+            segmentLength
+        };
+    }
+
+    //---
+
+
+
+    // problem #1: refactored tracer animation using Anime.js v4
+
+    function runTracerAnimation(state) {
+        if (!state) return;
+        const { tracer, pathEl, pathLength, segmentLength } = state;
+
+        tracer.style.strokeDasharray = `${segmentLength} ${pathLength - segmentLength}`;
+        tracer.style.strokeDashoffset = pathLength;
+
+        let lastProgress = 0, lastX = null, lastY = null;
+        let lastScrollY = window.scrollY;
+        let lastProgressDirection = null;
+        let frameCount = 0;
+        let oscillationCount = 0;
+        let cumulativeScrollDelta = 0;
+        let cumulativeProgressDeltaAbs = 0;
+        const diffHistory = [];
+        const efficiencyHistory = [];
+        const jitterHistory = [];
+
+        window.addEventListener('scroll', () => {
+            frameCount++;
+            const timestamp = performance.now();
+
+            const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+            const scrollProgress = Math.min(Math.max(window.scrollY / maxScroll, 0), 1);
+
+            // Deltas
+            const scrollDelta = window.scrollY - lastScrollY;
+            const baseDelta = scrollProgress - lastProgress;
+
+            // Current point + slope estimate
+            const currentLen = pathLength * lastProgress;
+            const point = pathEl.getPointAtLength(currentLen);
+            const aheadPt = pathEl.getPointAtLength(Math.min(currentLen + 5, pathLength));
+            const dy = aheadPt.y - point.y;
+            const dx = aheadPt.x - point.x;
+            const slopeFactor = Math.abs(dy) / (Math.abs(dx) + Math.abs(dy) + 1e-6);
+
+            // Viewport band
+            const bandTop = window.innerHeight * 0.2;
+            const bandBottom = window.innerHeight * 0.8;
+            const anchoredY = bandTop + scrollProgress * (bandBottom - bandTop);
+
+            // Edge factor
+            const viewportY = point.y - window.scrollY;
+            let edgeFactor = 1.0;
+            if (viewportY < bandTop) edgeFactor = 1.3;
+            if (viewportY > bandBottom) edgeFactor = 0.7;
+
+            // Multiplier
+            const multiplier = (0.5 + slopeFactor) * edgeFactor;
+
+            // Adjusted progress
+            const adjustedProgress = Math.min(Math.max(lastProgress + baseDelta * multiplier, 0), 1);
+            const progressDelta = adjustedProgress - lastProgress;
+            const progressDeltaAbs = Math.abs(progressDelta);
+
+            // Path fidelity point
+            const pathLen = pathLength * adjustedProgress;
+            const newPt = pathEl.getPointAtLength(pathLen);
+
+            // Smooth easing
+            if (lastX === null) lastX = newPt.x;
+            if (lastY === null) lastY = newPt.y;
+            const easedX = lastX + (newPt.x - lastX) * 0.15;
+            const easedY = lastY + (newPt.y - lastY) * 0.15;
+
+            // Applied Y source
+            const finalYUsed = anchoredY * 0.7 + easedY * 0.3;
+            const appliedYSource = "anchoredBlend";
+            const anchoredAppliedFlag = true;
+
+            // Drift direction
+            const driftDirection = finalYUsed > anchoredY ? "above" : "below";
+
+            // Oscillation detection
+            const progressDirection = progressDelta >= 0 ? "forward" : "backward";
+            const oscillation = lastProgressDirection && progressDirection !== lastProgressDirection;
+            if (oscillation) {
+                oscillationCount++;
+                jitterHistory.push(progressDeltaAbs);
+                if (jitterHistory.length > 10) jitterHistory.shift();
+            }
+            lastProgressDirection = progressDirection;
+
+            // Drift trend
+            const rawVsAnchoredDiff = finalYUsed - anchoredY;
+            diffHistory.push(rawVsAnchoredDiff);
+            if (diffHistory.length > 10) diffHistory.shift();
+            const anchoredVsFinalDiffTrend = (diffHistory.reduce((a, b) => a + b, 0) / diffHistory.length).toFixed(2);
+
+            // Drift ratio (relative to band height)
+            const driftRatio = ((rawVsAnchoredDiff) / (bandBottom - bandTop)).toFixed(3);
+
+            // Efficiency metrics
+            cumulativeScrollDelta += Math.abs(scrollDelta);
+            cumulativeProgressDeltaAbs += progressDeltaAbs;
+            const progressEfficiency = cumulativeScrollDelta > 0
+                ? (cumulativeProgressDeltaAbs / cumulativeScrollDelta).toFixed(6)
+                : "N/A";
+            efficiencyHistory.push(Number(progressEfficiency));
+            if (efficiencyHistory.length > 10) efficiencyHistory.shift();
+            const efficiencyTrend = (efficiencyHistory.reduce((a, b) => a + b, 0) / efficiencyHistory.length).toFixed(6);
+
+            // Efficiency decay flag
+            const efficiencyDecayFlag = efficiencyHistory.length >= 2 &&
+                efficiencyHistory[efficiencyHistory.length - 1] < efficiencyHistory[0];
+
+            // Oscillation rate
+            const oscillationRate = frameCount > 0 ? (oscillationCount / frameCount).toFixed(3) : "N/A";
+
+            // Jitter magnitude
+            const jitterMagnitude = jitterHistory.length > 0
+                ? (jitterHistory.reduce((a, b) => a + b, 0) / jitterHistory.length).toFixed(6)
+                : "N/A";
+
+            // Oscillation severity
+            const oscillationSeverity = cumulativeProgressDeltaAbs > 0
+                ? (jitterHistory.reduce((a, b) => a + b, 0) / cumulativeProgressDeltaAbs).toFixed(3)
+                : "N/A";
+
+            // Band violation flag
+            const bandViolationFlag = !(finalYUsed >= bandTop && finalYUsed <= bandBottom);
+
+            // Apply tracer position
+            tracer.setAttribute('cx', easedX);
+            tracer.setAttribute('cy', finalYUsed);
+            tracer.style.strokeDashoffset = pathLength - pathLen;
+
+            // Expanded audit log
+            console.log("[Tracer Diagnostic FULL]",
+                "frame=", frameCount,
+                "timestamp(ms)=", timestamp.toFixed(1),
+                "scrollY=", window.scrollY,
+                "scrollDelta=", scrollDelta,
+                "scrollDirection=", scrollDelta >= 0 ? "down" : "up",
+                "scrollProgress=", scrollProgress.toFixed(4),
+                "baseDelta=", baseDelta.toFixed(6),
+                "progressDirection=", progressDirection,
+                "progressDelta=", progressDelta.toFixed(6),
+                "progressDeltaAbs=", progressDeltaAbs.toFixed(6),
+                "oscillation=", oscillation,
+                "oscillationCount=", oscillationCount,
+                "oscillationRate=", oscillationRate,
+                "jitterMagnitude=", jitterMagnitude,
+                "oscillationSeverity=", oscillationSeverity,
+                "lastProgress(before)=", lastProgress.toFixed(4),
+                "adjustedProgress=", adjustedProgress.toFixed(4),
+                "anchoredVsFinalDiffTrend=", anchoredVsFinalDiffTrend,
+                "driftRatio=", driftRatio,
+                "progressEfficiency=", progressEfficiency,
+                "efficiencyTrend=", efficiencyTrend,
+                "efficiencyDecayFlag=", efficiencyDecayFlag,
+                "pathLen=", pathLen.toFixed(1),
+                "rawPathY=", point.y.toFixed(1),
+                "anchoredY=", anchoredY.toFixed(1),
+                "anchoredCandidateY=", anchoredY.toFixed(1),
+                "finalYUsed=", finalYUsed.toFixed(1),
+                "appliedYSource=", appliedYSource,
+                "anchoredAppliedFlag=", anchoredAppliedFlag,
+                "driftDirection=", driftDirection,
+                "rawVsAnchoredDiff=", rawVsAnchoredDiff.toFixed(1),
+                "anchoredInsideBand=", (anchoredY >= bandTop && anchoredY <= bandBottom),
+                "bandViolationFlag=", bandViolationFlag,
+                "bandTop=", bandTop.toFixed(1),
+                "bandBottom=", bandBottom.toFixed(1),
+                "slopeFactor=", slopeFactor.toFixed(3),
+                "edgeFactor=", edgeFactor.toFixed(2),
+                "multiplier=", multiplier.toFixed(3),
+                "easedX=", easedX.toFixed(1),
+                "easedY=", easedY.toFixed(1)
+            );
+
+            // Update last values
+            lastProgress = adjustedProgress;
+            lastScrollY = window.scrollY;
+            lastX = easedX;
+            lastY = easedY;
+        });
+    }
+
+
+    function runTracerAnimation_save_98(state) {
+        if (!state) return;
+
+        const { tracer, pathEl, pathLength, segmentLength } = state;
+
+        tracer.style.strokeDasharray = `${segmentLength} ${pathLength - segmentLength}`;
+        tracer.style.strokeDashoffset = pathLength;
+
+        // const scrollContainer = document.scrollingElement || document.documentElement;
+        // const el = window;
+
+        // console.log(el);
+
+        // window.addEventListener('scroll', () => {
+        //     console.log(`[DEBUG]  scrollTop=`, window.scrollY);
+        // });
+
+        // Target the body specifically
+        const bodyElement = document.body;
+
+        bodyElement.addEventListener('scroll', (event) => {
+            // Current vertical scroll position of the body element
+            const scrollTop = bodyElement.scrollTop;
+            console.log(`Body scrolled to: ${scrollTop}px`);
+        }, { passive: true }); // Improved performance in 2025
+
+
+        // const tracerAnim = animate(tracer, {
+        //     strokeDashoffset: [pathLength, 0],
+        //     easing: 'linear',
+        //     duration: 3000,
+        //     autoplay: false
+        // });
+        //
+        // scrollContainer.addEventListener('scroll', () => {
+        //     const maxScroll = scrollContainer.scrollHeight - scrollContainer.clientHeight;
+        //     const progress = scrollContainer.scrollTop / maxScroll;
+        //     tracerAnim.seek(tracerAnim.duration * progress);
+        //     console.log("[Tracer SCROLL]",
+        //         "scrollTop=", scrollContainer.scrollTop,
+        //         "progress=", progress.toFixed(3),
+        //         "dashoffset=", tracer.style.strokeDashoffset
+        //     );
+        // });
+    }
+
+    function runTracerAnimation_save97(state) {
+        if (!state) {
+            console.warn("[Tracer] No state provided");
+            return;
+        }
+
+        const { tracer, pathEl, pathLength, segmentLength } = state;
+
+        tracer.style.strokeDasharray = `${segmentLength} ${pathLength - segmentLength}`;
+        tracer.style.strokeDashoffset = pathLength;
+
+        console.log("[Tracer SETUP]",
+            "segmentLength=", segmentLength,
+            "pathLength=", pathLength,
+            "dasharray=", tracer.style.strokeDasharray,
+            "dashoffset=", tracer.style.strokeDashoffset
+        );
+
+        const scrollContainer = document.scrollingElement || document.documentElement;
+
+        const tracerAnim = animate(tracer, {
+            strokeDashoffset: [pathLength, 0],
+            easing: 'linear',
+            duration: 3000,
+            autoplay: false
+        });
+
+        console.log("[Tracer ANIM CREATED]", "duration=", tracerAnim.duration);
+
+        // Debug scroll events
+        scrollContainer.addEventListener('scroll', () => {
+            console.log("[Tracer DEBUG] scrollTop=", scrollContainer.scrollTop,
+                "maxScroll=", scrollContainer.scrollHeight - scrollContainer.clientHeight);
+        });
+
+        // Bind scroll controller
+        onScroll({
+            container: scrollContainer,
+            axis: 'y',
+            enter: 'bottom top',
+            leave: 'top bottom',
+            sync: true,
+            debug: true, // turn on built-in diagnostics
+            onProgress: progress => {
+                console.log("[Tracer SCROLL PROGRESS]", progress.toFixed(3));
+                tracerAnim.seek(tracerAnim.duration * progress);
+                console.log("[Tracer CURRENT OFFSET]", tracer.style.strokeDashoffset);
+            }
+        });
+
+        const startPoint = pathEl.getPointAtLength(0);
+        console.log("[Tracer INIT]",
+            "path start=(", startPoint.x.toFixed(1), ",", startPoint.y.toFixed(1), ")",
+            "dashoffset=", tracer.style.strokeDashoffset
+        );
+    }
+
+    function runTracerAnimation_save71(state) {
+        if (!state) return;
+
+        const { tracer, pathEl, pathLength, segmentLength } = state;
+
+        // Dash setup: one visible segment, rest hidden
+        tracer.style.strokeDasharray = `${segmentLength} ${pathLength}`;
+        tracer.style.strokeDashoffset = pathLength; // head at path start
+
+        const scrollContainer = document.scrollingElement || document.documentElement;
+
+        const scrollObserver = onScroll({
+            container: scrollContainer,
+            target: tracer,
+            axis: 'y',
+            enter: 'bottom top',
+            leave: 'top bottom',
+            sync: .25,
+            debug: false,
+
+            onUpdate: (observer) => {
+                const progress = Math.max(0, Math.min(1, observer.progress)); // clamp 0–1
+                const pathPosition = progress * pathLength;
+                const point = pathEl.getPointAtLength(pathPosition);
+
+                // Directly drive dashoffset based on scroll progress
+                tracer.style.strokeDashoffset = pathLength - pathPosition;
+
+                console.log(
+                    `[Tracer] progress=${progress.toFixed(3)}, pathPos=${pathPosition.toFixed(1)}, ` +
+                    `point=(${point.x.toFixed(1)}, ${point.y.toFixed(1)}), dashoffset=${tracer.style.strokeDashoffset}`
+                );
+            }
+        });
+
+        // Init diagnostics
+        const startPoint = pathEl.getPointAtLength(0);
+        console.log(
+            `[Tracer INIT] path start=(${startPoint.x.toFixed(1)}, ${startPoint.y.toFixed(1)}), ` +
+            `dashoffset=${tracer.style.strokeDashoffset}`
+        );
+    }
+
+    function runTracerAnimation_save2(state) {
+        if (!state) return;
+
+        const { tracer, pathEl, pathLength, segmentLength } = state;
+
+        // Base tracer animation (progress-based mapping)
+        const tracerAnim = animate(tracer, {
+            // strokeDashoffset: [0, -pathLength],
+            ease: 'linear',
+            strokeDashoffset: pathLength, // static init
+            autoplay: false               //
+        });
+
+        // Scroll observer with adaptive speed callbacks
+        const scrollObserver = onScroll({
+            container: window,
+            target: tracer,
+            axis: 'y',
+            enter: 'bottom top',
+            leave: 'top bottom',
+            sync: .25,   // smooth catch-up to scroll progress
+            debug: true,
+
+            // Enter threshold (any direction)
+            onEnter: () => {
+                console.log('[Tracer] Entered viewport → accelerate');
+                tracerAnim.playbackRate = 1.5;
+            },
+
+            // Enter threshold while scrolling forward (down)
+            onEnterForward: () => {
+                console.log('[Tracer] Entered viewport scrolling forward → accelerate more');
+                tracerAnim.playbackRate = 2.0;
+            },
+
+            // Enter threshold while scrolling backward (up)
+            onEnterBackward: () => {
+                console.log('[Tracer] Entered viewport scrolling backward → decelerate');
+                tracerAnim.playbackRate = 0.7;
+            },
+
+            // Leave threshold (forward)
+            onLeave: () => {
+                console.log('[Tracer] Left viewport (forward) → slow down');
+                tracerAnim.playbackRate = 0.7;
+            },
+
+            // Leave threshold (backward)
+            onLeaveBackward: () => {
+                console.log('[Tracer] Left viewport scrolling backward → reset');
+                tracerAnim.playbackRate = 1.0;
+            },
+
+            // Progress updates during scroll sync
+            onUpdate: (observer) => {
+                const progress = observer.progress; // 0–1
+                const pathPosition = progress * pathLength;
+                const point = pathEl.getPointAtLength(pathPosition);
+
+                const offset = pathLength - pathPosition + (segmentLength / 2);
+                tracer.style.strokeDashoffset = offset;
+
+                console.log(
+                    `[Tracer] progress=${progress.toFixed(3)}, tracerY=${point.y.toFixed(1)}, ` +
+                    `playbackRate=${tracerAnim.playbackRate}`
+                );
+            }
+        });
+
+        // Link tracer animation to scroll observer
+        scrollObserver.link(tracerAnim);
+
+        console.log('Tracer animation started with Progress-based + adaptive speed (Anime.js v4 scroll observer)');
+    }
+
+    function runTracerAnimation_save(state) {
+        if (!state) return;
+
+        const { tracer, pathEl, pathLength, segmentLength } = state;
+
+        // Base tracer animation (progress-based mapping)
+        const tracerAnim = animate(tracer, {
+            strokeDashoffset: [0, -pathLength],
+            ease: 'linear',
+        });
+
+        // Scroll observer with adaptive speed + direction-aware callbacks
+        const scrollObserver = onScroll({
+            container: document.body,
+            target: tracer,
+            axis: 'y',
+            enter: 'bottom top',
+            leave: 'top bottom',
+            sync: .25,   // smooth catch-up to scroll progress
+            debug: true,
+
+            // Enter threshold (any direction)
+            onEnter: () => {
+                console.log('[Tracer] Entered viewport → accelerate');
+                tracerAnim.playbackRate = 1.5;
+            },
+
+            // Enter threshold while scrolling forward (down)
+            onEnterForward: () => {
+                console.log('[Tracer] Entered viewport scrolling forward → accelerate more');
+                tracerAnim.playbackRate = 2.0;
+            },
+
+            // Enter threshold while scrolling backward (up)
+            onEnterBackward: () => {
+                console.log('[Tracer] Entered viewport scrolling backward → decelerate');
+                tracerAnim.playbackRate = 0.7;
+            },
+
+            // Leave threshold while scrolling forward (down)
+            onLeaveForward: () => {
+                console.log('[Tracer] Left viewport scrolling forward → slow down');
+                tracerAnim.playbackRate = 0.7;
+            },
+
+            // Leave threshold while scrolling backward (up)
+            onLeaveBackward: () => {
+                console.log('[Tracer] Left viewport scrolling backward → reset');
+                tracerAnim.playbackRate = 1.0;
+            },
+
+            // Progress updates during scroll sync
+            onUpdate: (observer) => {
+                const progress = observer.progress; // 0–1
+                const pathPosition = progress * pathLength;
+                const point = pathEl.getPointAtLength(pathPosition);
+
+                const offset = pathLength - pathPosition + (segmentLength / 2);
+                tracer.style.strokeDashoffset = offset;
+
+                console.log(
+                    `[Tracer] progress=${progress.toFixed(3)}, tracerY=${point.y.toFixed(1)}, ` +
+                    `playbackRate=${tracerAnim.playbackRate}`
+                );
+            }
+        });
+
+        // Link tracer animation to scroll observer
+        scrollObserver.link(tracerAnim);
+
+        console.log('Tracer animation started with Progress-based + adaptive speed (Anime.js v4 scroll observer)');
+    }
+
+
+    //------------------------------------------------------
+    // insert motifs
+
+    function getMotifConnectors(motifEl, skeletonData, runIndex = 0, viewportInflect = "up") {
+        if (!motifEl || !skeletonData) return null;
+
+        // Corridor anchors
+        const run = skeletonData.horizontalRuns[runIndex];
+        const leftLane = { x: run.start.x, y: run.start.y };
+        const rightLane = { x: run.end.x, y: run.end.y };
+        const baselineY = run.start.y;
+
+        // Resolve motif endpoints
+        let motifLeft, motifRight;
+        try {
+            const total = motifEl.getTotalLength();
+            const p0Local = motifEl.getPointAtLength(0);
+            const p1Local = motifEl.getPointAtLength(total);
+            const ctm = motifEl.getCTM();
+
+            const p0 = new DOMPoint(p0Local.x, p0Local.y).matrixTransform(ctm);
+            const p1 = new DOMPoint(p1Local.x, p1Local.y).matrixTransform(ctm);
+
+            motifLeft  = Math.abs(p0.x - leftLane.x) <= Math.abs(p1.x - leftLane.x) ? p0 : p1;
+            motifRight = motifLeft === p0 ? p1 : p0;
+        } catch {
+            const bboxFB = motifEl.getBBox();
+            const midY = bboxFB.y + bboxFB.height / 2;
+            motifLeft  = { x: bboxFB.x, y: midY };
+            motifRight = { x: bboxFB.x + bboxFB.width, y: midY };
+        }
+
+        // Amplitude: half motif height vs. half corridor size, clamped
+        const bbox = motifEl.getBBox();
+        let amplitude = Math.min(bbox.height / 2, (run.gapInfo?.size ?? bbox.height) / 2);
+        amplitude = Math.max(8, Math.min(amplitude, 60));
+
+        // S-curve helper: viewport edge inflection controlled by parameter
+        function sCurveViewport(x1, y1, x2, y2, viewportAtStart) {
+            const dx = x2 - x1;
+            if (!Number.isFinite(dx)) return "";
+            let c1, c2;
+            if (viewportAtStart) {
+                if (viewportInflect === "up") {
+                    c1 = { x: x1 + dx / 3, y: baselineY - amplitude };
+                    c2 = { x: x2 - dx / 3, y: baselineY + amplitude };
+                } else {
+                    c1 = { x: x1 + dx / 3, y: baselineY + amplitude };
+                    c2 = { x: x2 - dx / 3, y: baselineY - amplitude };
+                }
+            } else {
+                if (viewportInflect === "up") {
+                    c1 = { x: x1 + dx / 3, y: baselineY + amplitude };
+                    c2 = { x: x2 - dx / 3, y: baselineY - amplitude };
+                } else {
+                    c1 = { x: x1 + dx / 3, y: baselineY - amplitude };
+                    c2 = { x: x2 - dx / 3, y: baselineY + amplitude };
+                }
+            }
+            return `M${x1},${y1} C${c1.x},${c1.y} ${c2.x},${c2.y} ${x2},${y2}`;
+        }
+
+        // Return connector path strings
+        const leftConnector  = sCurveViewport(leftLane.x, leftLane.y, motifLeft.x, motifLeft.y, true);
+        const rightConnector = sCurveViewport(motifRight.x, motifRight.y, rightLane.x, rightLane.y, false);
+
+        return { leftConnector, rightConnector };
+    }
+
+    function previewBridges(motifEl, skeletonData, runIndex = 0, viewportInflect = "up") {
+        const overlay = document.getElementById("overlay");
+        if (!overlay || !motifEl || !skeletonData) return null;
+
+        // Corridor anchors
+        const run = skeletonData.horizontalRuns[runIndex];
+        const leftLane = { x: run.start.x, y: run.start.y };
+        const rightLane = { x: run.end.x, y: run.end.y };
+        const baselineY = run.start.y;
+
+        // Resolve motif endpoints
+        let motifLeft, motifRight;
+        try {
+            const total = motifEl.getTotalLength();
+            const p0Local = motifEl.getPointAtLength(0);
+            const p1Local = motifEl.getPointAtLength(total);
+            const ctm = motifEl.getCTM();
+
+            const p0 = new DOMPoint(p0Local.x, p0Local.y).matrixTransform(ctm);
+            const p1 = new DOMPoint(p1Local.x, p1Local.y).matrixTransform(ctm);
+
+            motifLeft  = Math.abs(p0.x - leftLane.x) <= Math.abs(p1.x - leftLane.x) ? p0 : p1;
+            motifRight = motifLeft === p0 ? p1 : p0;
+        } catch {
+            const bboxFB = motifEl.getBBox();
+            const midY = bboxFB.y + bboxFB.height / 2;
+            motifLeft  = { x: bboxFB.x, y: midY };
+            motifRight = { x: bboxFB.x + bboxFB.width, y: midY };
+        }
+
+        // Amplitude: half motif height vs. half corridor size, clamped
+        const bbox = motifEl.getBBox();
+        let amplitude = Math.min(bbox.height / 2, (run.gapInfo?.size ?? bbox.height) / 2);
+        amplitude = Math.max(8, Math.min(amplitude, 60));
+
+        // S-curve helper: viewport edge inflection controlled by parameter
+        function sCurveViewport(x1, y1, x2, y2, viewportAtStart) {
+            const dx = x2 - x1;
+            if (!Number.isFinite(dx)) return "";
+            let c1, c2;
+            if (viewportAtStart) {
+                // Viewport is at start
+                if (viewportInflect === "up") {
+                    c1 = { x: x1 + dx / 3, y: baselineY - amplitude }; // up first
+                    c2 = { x: x2 - dx / 3, y: baselineY + amplitude }; // then down
+                } else {
+                    c1 = { x: x1 + dx / 3, y: baselineY + amplitude }; // down first
+                    c2 = { x: x2 - dx / 3, y: baselineY - amplitude }; // then up
+                }
+            } else {
+                // Viewport is at end
+                if (viewportInflect === "up") {
+                    c1 = { x: x1 + dx / 3, y: baselineY + amplitude };
+                    c2 = { x: x2 - dx / 3, y: baselineY - amplitude }; // up near viewport
+                } else {
+                    c1 = { x: x1 + dx / 3, y: baselineY - amplitude };
+                    c2 = { x: x2 - dx / 3, y: baselineY + amplitude }; // down near viewport
+                }
+            }
+            return `M${x1},${y1} C${c1.x},${c1.y} ${c2.x},${c2.y} ${x2},${y2}`;
+        }
+
+        // Left bridge: viewport at start
+        const leftPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        leftPath.setAttribute("d", sCurveViewport(leftLane.x, leftLane.y, motifLeft.x, motifLeft.y, true));
+        leftPath.setAttribute("stroke", "red");
+        leftPath.setAttribute("fill", "none");
+        leftPath.setAttribute("vector-effect", "non-scaling-stroke");
+        overlay.appendChild(leftPath);
+
+        // Right bridge: viewport at end
+        const rightPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        rightPath.setAttribute("d", sCurveViewport(motifRight.x, motifRight.y, rightLane.x, rightLane.y, false));
+        rightPath.setAttribute("stroke", "blue");
+        rightPath.setAttribute("fill", "none");
+        rightPath.setAttribute("vector-effect", "non-scaling-stroke");
+        overlay.appendChild(rightPath);
+
+        return { leftPath, rightPath };
+    }
+
+    function previewBridges_save4(motifEl, skeletonData, runIndex = 0) {
+        const overlay = document.getElementById("overlay");
+        if (!overlay || !motifEl || !skeletonData) return null;
+
+        // Corridor anchors
+        const run = skeletonData.horizontalRuns[runIndex];
+        const leftLane = { x: run.start.x, y: run.start.y };
+        const rightLane = { x: run.end.x, y: run.end.y };
+        const baselineY = run.start.y;
+
+        // Resolve motif endpoints (CTM-aware)
+        let motifLeft, motifRight;
+        try {
+            const total = motifEl.getTotalLength();
+            const p0Local = motifEl.getPointAtLength(0);
+            const p1Local = motifEl.getPointAtLength(total);
+            const ctm = motifEl.getCTM();
+
+            const p0 = new DOMPoint(p0Local.x, p0Local.y).matrixTransform(ctm);
+            const p1 = new DOMPoint(p1Local.x, p1Local.y).matrixTransform(ctm);
+
+            motifLeft  = Math.abs(p0.x - leftLane.x) <= Math.abs(p1.x - leftLane.x) ? p0 : p1;
+            motifRight = motifLeft === p0 ? p1 : p0;
+        } catch {
+            const bboxFB = motifEl.getBBox();
+            const midY = bboxFB.y + bboxFB.height / 2;
+            motifLeft  = { x: bboxFB.x, y: midY };
+            motifRight = { x: bboxFB.x + bboxFB.width, y: midY };
+        }
+
+        // Amplitude: half motif height vs. half corridor size, clamped
+        const bbox = motifEl.getBBox();
+        let amplitude = Math.min(bbox.height / 2, (run.gapInfo?.size ?? bbox.height) / 2);
+        amplitude = Math.max(8, Math.min(amplitude, 60));
+
+        // S-curve with viewport-edge "up then down" inflection; path direction preserved
+        function sCurveViewportUp(x1, y1, x2, y2, viewportAtStart) {
+            const dx = x2 - x1;
+            if (!Number.isFinite(dx)) return "";
+            let c1, c2;
+            if (viewportAtStart) {
+                // Viewport is at start: go up first near the viewport, then down toward target
+                c1 = { x: x1 + dx / 3, y: baselineY - amplitude };
+                c2 = { x: x2 - dx / 3, y: baselineY + amplitude };
+            } else {
+                // Viewport is at end: ensure the curve approaches the viewport edge from above (up near end)
+                c1 = { x: x1 + dx / 3, y: baselineY + amplitude };
+                c2 = { x: x2 - dx / 3, y: baselineY - amplitude };
+            }
+            return `M${x1},${y1} C${c1.x},${c1.y} ${c2.x},${c2.y} ${x2},${y2}`;
+        }
+
+        // Left bridge: skeleton (viewport-left) → motifLeft; viewport is at start
+        const leftPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        leftPath.setAttribute("d", sCurveViewportUp(leftLane.x, leftLane.y, motifLeft.x, motifLeft.y, true));
+        leftPath.setAttribute("stroke", "red");
+        leftPath.setAttribute("fill", "none");
+        leftPath.setAttribute("vector-effect", "non-scaling-stroke");
+        overlay.appendChild(leftPath);
+
+        // Right bridge: motifRight → skeleton (viewport-right); viewport is at end
+        const rightPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        rightPath.setAttribute("d", sCurveViewportUp(motifRight.x, motifRight.y, rightLane.x, rightLane.y, false));
+        rightPath.setAttribute("stroke", "blue");
+        rightPath.setAttribute("fill", "none");
+        rightPath.setAttribute("vector-effect", "non-scaling-stroke");
+        overlay.appendChild(rightPath);
+
+        return { leftPath, rightPath };
+    }
+
+    function previewBridges_save3(motifEl, skeletonData, runIndex = 0) {
+        const overlay = document.getElementById("overlay");
+        if (!overlay || !motifEl || !skeletonData) return null;
+
+        // Corridor anchors
+        const run = skeletonData.horizontalRuns[runIndex];
+        const leftLane = { x: run.start.x, y: run.start.y };
+        const rightLane = { x: run.end.x, y: run.end.y };
+        const baselineY = run.start.y; // horizontal run baseline
+
+        // Resolve motif endpoints robustly (CTM-aware)
+        let motifLeft, motifRight;
+        try {
+            const total = motifEl.getTotalLength();
+            const p0Local = motifEl.getPointAtLength(0);
+            const p1Local = motifEl.getPointAtLength(total);
+            const ctm = motifEl.getCTM();
+
+            const p0 = new DOMPoint(p0Local.x, p0Local.y).matrixTransform(ctm);
+            const p1 = new DOMPoint(p1Local.x, p1Local.y).matrixTransform(ctm);
+
+            // assign left/right by proximity to left lane
+            motifLeft = Math.abs(p0.x - leftLane.x) <= Math.abs(p1.x - leftLane.x) ? p0 : p1;
+            motifRight = motifLeft === p0 ? p1 : p0;
+        } catch {
+            const bbox = motifEl.getBBox();
+            const midY = bbox.y + bbox.height / 2;
+            motifLeft  = { x: bbox.x, y: midY };
+            motifRight = { x: bbox.x + bbox.width, y: midY };
+        }
+
+        // Amplitude: half motif height vs. half corridor size, clamped
+        const bbox = motifEl.getBBox();
+        let amplitude = Math.min(bbox.height / 2, (run.gapInfo?.size ?? bbox.height) / 2);
+        amplitude = Math.max(8, Math.min(amplitude, 60));
+
+        // Baseline-oriented S-curve: always "up then down"
+        function sCurveBaseline(x1, y1, x2, y2) {
+            const dx = x2 - x1;
+            if (!Number.isFinite(dx)) return "";
+            const c1 = { x: x1 + dx / 3, y: baselineY - amplitude }; // up relative to baseline
+            const c2 = { x: x2 - dx / 3, y: baselineY + amplitude }; // down relative to baseline
+            return `M${x1},${y1} C${c1.x},${c1.y} ${c2.x},${c2.y} ${x2},${y2}`;
+        }
+
+        // Left bridge: skeleton (viewport-left) → motifLeft (direction preserved)
+        const leftPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        leftPath.setAttribute("d", sCurveBaseline(leftLane.x, leftLane.y, motifLeft.x, motifLeft.y));
+        leftPath.setAttribute("stroke", "red");
+        leftPath.setAttribute("fill", "none");
+        leftPath.setAttribute("vector-effect", "non-scaling-stroke");
+        overlay.appendChild(leftPath);
+
+        // Right bridge: motifRight → skeleton (viewport-right) (direction preserved)
+        const rightPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        rightPath.setAttribute("d", sCurveBaseline(motifRight.x, motifRight.y, rightLane.x, rightLane.y));
+        rightPath.setAttribute("stroke", "blue");
+        rightPath.setAttribute("fill", "none");
+        rightPath.setAttribute("vector-effect", "non-scaling-stroke");
+        overlay.appendChild(rightPath);
+
+        return { leftPath, rightPath };
+    }
+
+    function previewBridges_save2(motifEl, skeletonData, runIndex = 0) {
+        const overlay = document.getElementById("overlay");
+        if (!overlay || !motifEl || !skeletonData) return null;
+
+        // Corridor anchors
+        const run = skeletonData.horizontalRuns[runIndex];
+        const leftLane = { x: run.start.x, y: run.start.y };
+        const rightLane = { x: run.end.x, y: run.end.y };
+
+        // Resolve motif endpoints robustly
+        let motifLeft, motifRight;
+        try {
+            const total = motifEl.getTotalLength();
+            const p0Local = motifEl.getPointAtLength(0);
+            const p1Local = motifEl.getPointAtLength(total);
+            const ctm = motifEl.getCTM();
+
+            const p0 = new DOMPoint(p0Local.x, p0Local.y).matrixTransform(ctm);
+            const p1 = new DOMPoint(p1Local.x, p1Local.y).matrixTransform(ctm);
+
+            const dist0 = Math.abs(p0.x - leftLane.x);
+            const dist1 = Math.abs(p1.x - leftLane.x);
+            motifLeft = dist0 <= dist1 ? p0 : p1;
+            motifRight = dist0 <= dist1 ? p1 : p0;
+        } catch (e) {
+            const bbox = motifEl.getBBox();
+            const midY = bbox.y + bbox.height / 2;
+            motifLeft = { x: bbox.x, y: midY };
+            motifRight = { x: bbox.x + bbox.width, y: midY };
+        }
+
+        // Amplitude: half motif height or corridor size, clamped
+        const bbox = motifEl.getBBox();
+        let amplitude = Math.min(bbox.height / 2, (run.gapInfo?.size || bbox.height) / 2);
+        amplitude = Math.max(8, Math.min(amplitude, 60));
+
+        // Embedded sCurve helper with direction flag
+        function sCurve(x1, y1, x2, y2, direction = "down") {
+            const dx = x2 - x1;
+            if (!Number.isFinite(dx)) return "";
+            let c1, c2;
+            if (direction === "down") {
+                // up then down
+                c1 = { x: x1 + dx / 3, y: y1 - amplitude };
+                c2 = { x: x2 - dx / 3, y: y2 + amplitude };
+            } else {
+                // reflected: down then up
+                c1 = { x: x1 + dx / 3, y: y1 + amplitude };
+                c2 = { x: x2 - dx / 3, y: y2 - amplitude };
+            }
+            return `M${x1},${y1} C${c1.x},${c1.y} ${c2.x},${c2.y} ${x2},${y2}`;
+        }
+
+        // Left bridge: reflected about horizontal axis
+        const leftPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        leftPath.setAttribute("d", sCurve(leftLane.x, leftLane.y, motifLeft.x, motifLeft.y, "up"));
+        leftPath.setAttribute("stroke", "red");
+        leftPath.setAttribute("fill", "none");
+        leftPath.setAttribute("vector-effect", "non-scaling-stroke");
+        overlay.appendChild(leftPath);
+
+        // Right bridge: standard up‑then‑down
+        const rightPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        rightPath.setAttribute("d", sCurve(motifRight.x, motifRight.y, rightLane.x, rightLane.y, "down"));
+        rightPath.setAttribute("stroke", "blue");
+        rightPath.setAttribute("fill", "none");
+        rightPath.setAttribute("vector-effect", "non-scaling-stroke");
+        overlay.appendChild(rightPath);
+
+        return { leftPath, rightPath };
+    }
+
+    function previewBridges_save(motifEl, skeletonData, runIndex = 0) {
+        const overlay = document.getElementById("overlay");
+        if (!overlay || !motifEl || !skeletonData) return null;
+
+        // Corridor anchors (authoritative)
+        const run = skeletonData.horizontalRuns[runIndex];
+        const leftLane = { x: run.start.x, y: run.start.y };
+        const rightLane = { x: run.end.x, y: run.end.y };
+        const baselineY = run.start.y;
+
+        // Motif geometry
+        const bbox = motifEl.getBBox();
+        const motifHeight = bbox.height;
+        const corridorHeight = run.gapInfo?.size ?? motifHeight;
+        const amplitude = Math.min(motifHeight / 2, corridorHeight / 2, (run.gapInfo?.tol ?? corridorHeight) ); // clamp by tol if present
+
+        // Robust: resolve motif path endpoints in overlay coordinates
+        const total = motifEl.getTotalLength();
+        const p0Local = motifEl.getPointAtLength(0);
+        const p1Local = motifEl.getPointAtLength(total);
+
+        // Transform local -> overlay via CTM
+        const ctm = motifEl.getCTM();
+        const p0 = new DOMPoint(p0Local.x, p0Local.y).matrixTransform(ctm);
+        const p1 = new DOMPoint(p1Local.x, p1Local.y).matrixTransform(ctm);
+
+        // Assign left/right motif anchors based on proximity to lanes (handles path direction)
+        const distToLeft_p0 = Math.abs(p0.x - leftLane.x);
+        const distToLeft_p1 = Math.abs(p1.x - leftLane.x);
+        const motifLeft = distToLeft_p0 <= distToLeft_p1 ? p0 : p1;
+        const motifRight = distToLeft_p0 <= distToLeft_p1 ? p1 : p0;
+
+        // Build gentle S-curves that hug the corridor and respect actual endpoint Ys
+        // function sCurve(x1, y1, x2, y2) {
+        //     const dx = x2 - x1;
+        //     // Bias control points around the corridor baseline, but respect local endpoint Ys
+        //     const c1 = { x: x1 + dx / 3, y: (y1 + baselineY) / 2 - amplitude / 2 };
+        //     const c2 = { x: x2 - dx / 3, y: (y2 + baselineY) / 2 + amplitude / 2 };
+        //     return `M${x1},${y1} C${c1.x},${c1.y} ${c2.x},${c2.y} ${x2},${y2}`;
+        // }
+
+        function sCurve(x1, y1, x2, y2, amplitude) {
+            const dx = x2 - x1;
+            const dy = y2 - y1;
+
+            // Guard against degenerate cases
+            if (!isFinite(dx) || !isFinite(dy)) return "";
+
+            // Control points: first nudges upward, second nudges downward
+            const c1 = { x: x1 + dx / 3, y: y1 - amplitude };
+            const c2 = { x: x2 - dx / 3, y: y2 + amplitude };
+
+            return `M${x1},${y1} C${c1.x},${c1.y} ${c2.x},${c2.y} ${x2},${y2}`;
+        }
+
+
+        // Left bridge: skeleton → motif start
+        const leftPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        leftPath.setAttribute("d", sCurve(leftLane.x, leftLane.y, motifLeft.x, motifLeft.y));
+        leftPath.setAttribute("stroke", "red");
+        leftPath.setAttribute("fill", "none");
+        leftPath.setAttribute("vector-effect", "non-scaling-stroke");
+        overlay.appendChild(leftPath);
+
+        // Right bridge: motif end → skeleton
+        const rightPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        rightPath.setAttribute("d", sCurve(motifRight.x, motifRight.y, rightLane.x, rightLane.y));
+        rightPath.setAttribute("stroke", "blue");
+        rightPath.setAttribute("fill", "none");
+        rightPath.setAttribute("vector-effect", "non-scaling-stroke");
+        overlay.appendChild(rightPath);
+
+        // Optional diagnostics: anchors and control points
+        // drawDiagnostics([leftLane, motifLeft, rightLane, motifRight], overlay);
+
+        return { leftPath, rightPath };
+    }
+
+    function placeMotif(skeletonData) {
+        const overlay = document.getElementById("overlay");
+        const motifEl = document.getElementById("motif-heart-health-normalized");
+        if (!overlay || !motifEl || !skeletonData) return null;
+
+        // Motif viewBox
+        const vbWidth = 100, vbHeight = 100;
+        const targetHeight = 70;
+        const scale = targetHeight / vbHeight;
+        const targetWidth = vbWidth * scale;
+
+        // Overlay width
+        // const overlayWidth = skeletonData.viewportWidth || 320;
+        const viewWidth = window.visualViewport ? window.visualViewport.width : window.innerWidth;
+
+        // Horizontal center
+        // const translateX = (overlayWidth / 2) - (targetWidth / 2);
+        const translateX = (viewWidth / 2) - (targetWidth / 2);
+
+        // Vertical center of first horizontal run
+        const firstRun = skeletonData.horizontalRuns[0];
+        const midY = (firstRun.start.y + firstRun.end.y) / 2;
+        const translateY = midY - (targetHeight / 2);
+
+        // Parse and transform the motif path
+        const d = motifEl.getAttribute("d");
+        const commands = d.match(/[a-zA-Z]|-?\d*\.?\d+/g); // crude tokenizer
+
+        let result = "";
+        let i = 0;
+        while (i < commands.length) {
+            const cmd = commands[i++];
+            result += cmd;
+            let numArgs;
+            switch (cmd) {
+                case "M":
+                case "L":
+                    numArgs = 2;
+                    break;
+                case "C":
+                    numArgs = 6;
+                    break;
+                case "Q":
+                    numArgs = 4;
+                    break;
+                case "H":
+                case "V":
+                    numArgs = 1;
+                    break;
+                case "Z":
+                case "z":
+                    numArgs = 0;
+                    break;
+                default:
+                    numArgs = 0;
+            }
+            for (let j = 0; j < numArgs; j += 2) {
+                if (numArgs === 1) {
+                    // H or V
+                    const val = parseFloat(commands[i++]);
+                    if (cmd === "H") {
+                        result += (val * scale + translateX) + " ";
+                    } else if (cmd === "V") {
+                        result += (val * scale + translateY) + " ";
+                    }
+                } else {
+                    const x = parseFloat(commands[i++]);
+                    const y = parseFloat(commands[i++]);
+                    const tx = x * scale + translateX;
+                    const ty = y * scale + translateY;
+                    result += tx + "," + ty + " ";
+                }
+            }
+        }
+
+        console.log('result', result);
+
+        // Clone motif with transformed d
+        const cloned = motifEl.cloneNode(true);
+        cloned.removeAttribute("id");
+        cloned.removeAttribute("transform");
+        cloned.setAttribute("d", result.trim());
+        // overlay.appendChild(cloned);
+
+        return cloned;
+    }
+
+    function placeMotif_save(skeletonData) {
+        const overlay = document.getElementById("overlay");
+        const motif = document.getElementById("motif-heart-health");
+        if (!overlay || !motif || !skeletonData) return null;
+
+        // Motif viewBox
+        const vbWidth = 100, vbHeight = 100;
+        const targetHeight = 70;
+        const scale = targetHeight / vbHeight;
+        const targetWidth = vbWidth * scale;
+
+        // Overlay width
+        const overlayWidth = skeletonData.viewportWidth || 320;
+
+        // Horizontal center
+        const translateX = (overlayWidth / 2) - (targetWidth / 2);
+
+        // Vertical center of first horizontal run
+        const firstRun = skeletonData.horizontalRuns[0];
+        const midY = (firstRun.start.y + firstRun.end.y) / 2;
+        const translateY = midY - (targetHeight / 2); // center motif vertically
+
+        // Build transform
+        const transform = `translate(${translateX},${translateY}) scale(${scale})`;
+
+        // Clone motif into overlay
+        const cloned = motif.cloneNode(true);
+        cloned.removeAttribute("id");
+        cloned.setAttribute("transform", transform);
+        overlay.appendChild(cloned);
+
+        return cloned;
+    }
+
+    function placeMotifHeart() {
+
+        const overlay = document.getElementById("overlay");
+        const motif = document.getElementById("motif-heart-health");
+
+        if (!overlay || !motif) return null;
+
+        // Motif viewBox dimensions
+        const vbWidth = 100;
+        const vbHeight = 100;
+
+        // Desired height in overlay coords
+        const targetHeight = 70;
+
+        // Scale factor (uniform to preserve aspect ratio)
+        const scale = targetHeight / vbHeight;
+        const targetWidth = vbWidth * scale;
+
+        // Overlay viewBox dimensions
+        const overlayWidth = 320;
+
+        // Center horizontally in overlay
+        const centerX = overlayWidth / 2;
+        const translateX = centerX - targetWidth / 2;
+
+        // Place vertically at y=400 (top of motif at 400)
+        const translateY = 370;
+
+        // Build transform string
+        const transform = `translate(${translateX},${translateY}) scale(${scale})`;
+
+        // Clone motif into overlay with transform applied
+        const cloned = motif.cloneNode(true);
+        cloned.removeAttribute("id"); // avoid duplicate IDs
+        cloned.setAttribute("transform", transform);
+
+        overlay.appendChild(cloned);
+
+        return cloned;
+
+    }
+
+    function insertMotifIntoOverlay(modifiedMotif) {
+        const overlay = document.getElementById("overlay");
+        if (!overlay || !modifiedMotif) return null;
+
+        // Ensure the motif has a unique ID inside overlay
+        modifiedMotif.setAttribute("id", "motif-heart-health-overlay");
+
+        // Append the motif path into the overlay SVG
+        overlay.appendChild(modifiedMotif);
+
+        return modifiedMotif;
+    }
+
+
+    //------------------------------------------------------
+    // insert motifs with adaptive bridging
+    //------------------------------------------------------
+
+    function insertMotifsIntoSkeleton(skeletonData, motifAssignments = {}) {
+        if (!skeletonData || !skeletonData.motifSlots) {
+            console.warn("No motif slots available");
+            return skeletonData;
+        }
+
+        const { points, motifSlots, rects } = skeletonData;
+        let newPoints = [...points];
+
+        // Get skeleton viewBox directly from overlay SVG
+        const overlaySvg = document.getElementById("overlay");
+        const viewBoxAttr = overlaySvg ? overlaySvg.getAttribute("viewBox") : null;
+        let vbX = 0, vbY = 0, vbW = 0, vbH = 0;
+        if (viewBoxAttr) {
+            [vbX, vbY, vbW, vbH] = viewBoxAttr.split(" ").map(parseFloat);
+        } else {
+            console.warn("Overlay SVG viewBox missing");
+        }
+
+        // Process slots in reverse order
+        const slots = [...motifSlots].reverse();
+
+        for (const slot of slots) {
+            const runIndex = slot.gapIndex;
+            const motifId = motifAssignments[runIndex];
+            if (!motifId) continue;
+
+            const motifEl = document.getElementById(motifId);
+            if (!motifEl) {
+                console.error("Motif not found:", motifId);
+                continue;
+            }
+
+            const motifSvg = motifEl.ownerSVGElement;
+            if (!motifSvg) {
+                console.error("Motif SVG not found for:", motifId);
+                continue;
+            }
+
+            const motifViewBoxAttr = motifSvg.getAttribute("viewBox");
+            if (!motifViewBoxAttr) {
+                console.error("Motif viewBox missing:", motifId);
+                continue;
+            }
+            const [mx, my, mw, mh] = motifViewBoxAttr.split(" ").map(parseFloat);
+            const motifBox = { width: mw, height: mh };
+
+            const motifD = motifEl.getAttribute("d");
+            if (!motifD) continue;
+
+            // Corridor geometry
+            const top = rects[runIndex - 1]?.bottom;
+            const bottom = rects[runIndex]?.top;
+            if (!Number.isFinite(top) || !Number.isFinite(bottom)) continue;
+
+            const gapLeft = Math.min(slot.start.x, slot.end.x);
+            const gapRight = Math.max(slot.start.x, slot.end.x);
+            const gapWidth = gapRight - gapLeft;
+            const gapHeight = bottom - top;
+            const gapCX = (gapLeft + gapRight) / 2;
+            const gapCY = (top + bottom) / 2;
+
+            // Transform motif into skeleton coordinates
+            const motifAbs = normalizePathToAbsolute(motifD);
+            const motifTransformed = transformAbsolutePathD(
+                motifAbs,
+                motifBox,
+                Math.min(gapWidth / motifBox.width, gapHeight / motifBox.height),
+                gapCX,
+                gapCY
+            );
+
+            // Extract motif endpoints
+            const motifPoints = pathToPoints(motifTransformed);
+            if (motifPoints.length < 2) continue;
+            const motifStart = motifPoints[0];
+            const motifEnd = motifPoints[motifPoints.length - 1];
+
+            // Adaptive bridges
+            const { entry, exit } = spliceMotifWithAdaptiveBridge(
+                slot.start,
+                motifStart,
+                motifEnd,
+                slot.end,
+                8 // tolerance
+            );
+
+            // Build splice sequence
+            const spliceSeq = `${entry} ${motifTransformed} ${exit}`;
+
+            // Replace skeleton segment with motif splice
+            newPoints = spliceMotifIntoPoints(newPoints, slot.start, slot.end, pathToPoints(spliceSeq));
+        }
+
+        return { ...skeletonData, points: newPoints };
+    }
+
+
+    //------------------------------------------------------
+    // transformAbsolutePathD(d, motifBox, scale, gapCX, gapCY)
+    // - Assumes d uses absolute commands (normalize first if needed)
+    // - Applies uniform scale around motif viewBox center, then translates to gap center
+    //------------------------------------------------------
+    function transformAbsolutePathD(d, motifBox, scale, gapCX, gapCY) {
+        const cx0 = motifBox.width / 2;
+        const cy0 = motifBox.height / 2;
+
+        const tokens = d.match(/[a-zA-Z]|-?\d*\.?\d+(?:e[-+]?\d+)?/g);
+        if (!tokens) return d;
+
+        let out = [];
+        let i = 0;
+
+        const T = (x, y) => ({
+            x: scale * (x - cx0) + gapCX,
+            y: scale * (y - cy0) + gapCY
+        });
+
+        function num() { return parseFloat(tokens[i++]); }
+
+        while (i < tokens.length) {
+            const cmd = tokens[i++];
+
+            switch (cmd) {
+                case 'M': {
+                    const x = num(), y = num();
+                    const p = T(x, y);
+                    out.push(`M ${p.x} ${p.y}`);
+                    // implicit L pairs
+                    while (i < tokens.length && !isNaN(tokens[i])) {
+                        const x2 = num(), y2 = num();
+                        const p2 = T(x2, y2);
+                        out.push(`L ${p2.x} ${p2.y}`);
+                    }
+                    break;
+                }
+                case 'L': {
+                    const x = num(), y = num();
+                    const p = T(x, y);
+                    out.push(`L ${p.x} ${p.y}`);
+                    break;
+                }
+                case 'H': {
+                    const x = num();
+                    // Horizontal: y stays at previous y; we can't read it directly, so emit L using previous y
+                    // To do this properly, track last point:
+                    console.warn('H encountered: converting to L requires last point; ensure pathToPoints tracks lastY.');
+                    const p = T(x, cy0); // fallback center; for correctness, prefer replacing H during normalization
+                    out.push(`L ${p.x} ${p.y}`);
+                    break;
+                }
+                case 'V': {
+                    const y = num();
+                    console.warn('V encountered: converting to L requires last point; ensure pathToPoints tracks lastX.');
+                    const p = T(cx0, y);
+                    out.push(`L ${p.x} ${p.y}`);
+                    break;
+                }
+                case 'C': {
+                    const x1 = num(), y1 = num();
+                    const x2 = num(), y2 = num();
+                    const x = num(), y = num();
+                    const p1 = T(x1, y1);
+                    const p2 = T(x2, y2);
+                    const p = T(x, y);
+                    out.push(`C ${p1.x} ${p1.y} ${p2.x} ${p2.y} ${p.x} ${p.y}`);
+                    break;
+                }
+                case 'S': {
+                    const x2 = num(), y2 = num();
+                    const x = num(), y = num();
+                    const p2 = T(x2, y2);
+                    const p = T(x, y);
+                    out.push(`S ${p2.x} ${p2.y} ${p.x} ${p.y}`);
+                    break;
+                }
+                case 'Q': {
+                    const x1 = num(), y1 = num();
+                    const x = num(), y = num();
+                    const p1 = T(x1, y1);
+                    const p = T(x, y);
+                    out.push(`Q ${p1.x} ${p1.y} ${p.x} ${p.y}`);
+                    break;
+                }
+                case 'T': {
+                    const x = num(), y = num();
+                    const p = T(x, y);
+                    out.push(`T ${p.x} ${p.y}`);
+                    break;
+                }
+                case 'A': {
+                    const rx = num(), ry = num();
+                    const rot = num();
+                    const laf = num(), sf = num();
+                    const x = num(), y = num();
+                    const p = T(x, y);
+                    // Scale radii uniformly
+                    out.push(`A ${rx * scale} ${ry * scale} ${rot} ${laf} ${sf} ${p.x} ${p.y}`);
+                    break;
+                }
+                case 'Z':
+                case 'z': {
+                    out.push('Z');
+                    break;
+                }
+                default: {
+                    console.warn('Unhandled command in transform:', cmd);
+                    break;
+                }
+            }
+        }
+
+        return out.join(' ');
+    }
+
+    //------------------------------------------------------
+    // pathToPoints(d)
+    // - Returns the sequence of end points for commands
+    // - Useful for motifStart/motifEnd extraction
+    //------------------------------------------------------
+    function pathToPoints(d) {
+        const tokens = d.match(/[a-zA-Z]|-?\d*\.?\d+(?:e[-+]?\d+)?/g);
+        if (!tokens) return [];
+
+        let i = 0;
+        let points = [];
+        let last = { x: 0, y: 0 };
+        let subStart = { x: 0, y: 0 };
+
+        function num() { return parseFloat(tokens[i++]); }
+
+        while (i < tokens.length) {
+            const cmd = tokens[i++];
+
+            switch (cmd) {
+                case 'M': {
+                    const x = num(), y = num();
+                    last = { x, y };
+                    subStart = { x, y };
+                    points.push({ x, y });
+                    // implicit Ls
+                    while (i < tokens.length && !isNaN(tokens[i])) {
+                        const x2 = num(), y2 = num();
+                        last = { x: x2, y: y2 };
+                        points.push({ x: x2, y: y2 });
+                    }
+                    break;
+                }
+                case 'L': {
+                    const x = num(), y = num();
+                    last = { x, y };
+                    points.push({ x, y });
+                    break;
+                }
+                case 'H': {
+                    const x = num();
+                    last = { x, y: last.y };
+                    points.push({ ...last });
+                    break;
+                }
+                case 'V': {
+                    const y = num();
+                    last = { x: last.x, y };
+                    points.push({ ...last });
+                    break;
+                }
+                case 'C': {
+                    // control1, control2, end
+                    num(); num(); // x1 y1
+                    num(); num(); // x2 y2
+                    const x = num(), y = num();
+                    last = { x, y };
+                    points.push({ x, y });
+                    break;
+                }
+                case 'S': {
+                    // control2, end
+                    num(); num(); // x2 y2
+                    const x = num(), y = num();
+                    last = { x, y };
+                    points.push({ x, y });
+                    break;
+                }
+                case 'Q': {
+                    // control, end
+                    num(); num(); // x1 y1
+                    const x = num(), y = num();
+                    last = { x, y };
+                    points.push({ x, y });
+                    break;
+                }
+                case 'T': {
+                    const x = num(), y = num();
+                    last = { x, y };
+                    points.push({ x, y });
+                    break;
+                }
+                case 'A': {
+                    // rx ry rot laf sf x y
+                    num(); num(); num(); num(); num();
+                    const x = num(), y = num();
+                    last = { x, y };
+                    points.push({ x, y });
+                    break;
+                }
+                case 'Z':
+                case 'z': {
+                    last = { ...subStart };
+                    points.push({ ...last });
+                    break;
+                }
+                default:
+                    console.warn('Unhandled command in pathToPoints:', cmd);
+                    break;
+            }
+        }
+
+        return points;
+    }
+
+    //------------------------------------------------------
+    // normalizePathToAbsolute()
+    // Converts relative SVG path commands to absolute
+    //------------------------------------------------------
+    function normalizePathToAbsolute(d) {
+        // Quick check: if no lowercase commands, return unchanged
+        if (!/[mlhvcsqta]/.test(d)) {
+            return d;
+        }
+
+        const tokens = d.match(/[a-zA-Z]|-?\d*\.?\d+(?:e[-+]?\d+)?/g);
+        if (!tokens) return d;
+
+        let result = [];
+        let i = 0;
+        let currentPoint = { x: 0, y: 0 };
+        let subpathStart = { x: 0, y: 0 };
+        let lastControl = null;
+
+        function nextNum() { return parseFloat(tokens[i++]); }
+
+        while (i < tokens.length) {
+            let cmd = tokens[i++];
+            let isRelative = (cmd === cmd.toLowerCase());
+            let cmdUpper = cmd.toUpperCase();
+
+            switch (cmdUpper) {
+                case 'M': {
+                    let x = nextNum(), y = nextNum();
+                    if (isRelative) { x += currentPoint.x; y += currentPoint.y; }
+                    currentPoint = { x, y };
+                    subpathStart = { x, y };
+                    result.push(`M ${x} ${y}`);
+                    // Subsequent pairs are implicit L
+                    while (i < tokens.length && !isNaN(tokens[i])) {
+                        x = nextNum(); y = nextNum();
+                        if (isRelative) { x += currentPoint.x; y += currentPoint.y; }
+                        currentPoint = { x, y };
+                        result.push(`L ${x} ${y}`);
+                    }
+                    break;
+                }
+                case 'L': {
+                    let x = nextNum(), y = nextNum();
+                    if (isRelative) { x += currentPoint.x; y += currentPoint.y; }
+                    currentPoint = { x, y };
+                    result.push(`L ${x} ${y}`);
+                    break;
+                }
+                case 'H': {
+                    let x = nextNum();
+                    if (isRelative) x += currentPoint.x;
+                    currentPoint.x = x;
+                    result.push(`L ${x} ${currentPoint.y}`);
+                    break;
+                }
+                case 'V': {
+                    let y = nextNum();
+                    if (isRelative) y += currentPoint.y;
+                    currentPoint.y = y;
+                    result.push(`L ${currentPoint.x} ${y}`);
+                    break;
+                }
+                case 'C': {
+                    let x1 = nextNum(), y1 = nextNum();
+                    let x2 = nextNum(), y2 = nextNum();
+                    let x = nextNum(), y = nextNum();
+                    if (isRelative) {
+                        x1 += currentPoint.x; y1 += currentPoint.y;
+                        x2 += currentPoint.x; y2 += currentPoint.y;
+                        x += currentPoint.x; y += currentPoint.y;
+                    }
+                    currentPoint = { x, y };
+                    lastControl = { x: x2, y: y2 };
+                    result.push(`C ${x1} ${y1} ${x2} ${y2} ${x} ${y}`);
+                    break;
+                }
+                case 'S': {
+                    let x2 = nextNum(), y2 = nextNum();
+                    let x = nextNum(), y = nextNum();
+                    let x1 = currentPoint.x, y1 = currentPoint.y;
+                    if (lastControl) {
+                        x1 = 2 * currentPoint.x - lastControl.x;
+                        y1 = 2 * currentPoint.y - lastControl.y;
+                    }
+                    if (isRelative) {
+                        x2 += currentPoint.x; y2 += currentPoint.y;
+                        x += currentPoint.x; y += currentPoint.y;
+                    }
+                    currentPoint = { x, y };
+                    lastControl = { x: x2, y: y2 };
+                    result.push(`C ${x1} ${y1} ${x2} ${y2} ${x} ${y}`);
+                    break;
+                }
+                case 'Q': {
+                    let x1 = nextNum(), y1 = nextNum();
+                    let x = nextNum(), y = nextNum();
+                    if (isRelative) {
+                        x1 += currentPoint.x; y1 += currentPoint.y;
+                        x += currentPoint.x; y += currentPoint.y;
+                    }
+                    currentPoint = { x, y };
+                    lastControl = { x: x1, y: y1 };
+                    result.push(`Q ${x1} ${y1} ${x} ${y}`);
+                    break;
+                }
+                case 'T': {
+                    let x = nextNum(), y = nextNum();
+                    let x1 = currentPoint.x, y1 = currentPoint.y;
+                    if (lastControl) {
+                        x1 = 2 * currentPoint.x - lastControl.x;
+                        y1 = 2 * currentPoint.y - lastControl.y;
+                    }
+                    if (isRelative) { x += currentPoint.x; y += currentPoint.y; }
+                    currentPoint = { x, y };
+                    lastControl = { x: x1, y: y1 };
+                    result.push(`Q ${x1} ${y1} ${x} ${y}`);
+                    break;
+                }
+                case 'A': {
+                    // Arc: rx ry x-axis-rotation large-arc-flag sweep-flag x y
+                    let rx = nextNum(), ry = nextNum();
+                    let rot = nextNum();
+                    let laf = nextNum(), sf = nextNum();
+                    let x = nextNum(), y = nextNum();
+                    if (isRelative) { x += currentPoint.x; y += currentPoint.y; }
+                    currentPoint = { x, y };
+                    result.push(`A ${rx} ${ry} ${rot} ${laf} ${sf} ${x} ${y}`);
+                    break;
+                }
+                case 'Z': {
+                    currentPoint = { ...subpathStart };
+                    result.push('Z');
+                    break;
+                }
+                default: {
+                    console.warn("Unhandled command:", cmd);
+                    break;
+                }
+            }
+        }
+
+        return result.join(' ');
+    }
+
+    //------------------------------------------------------
+    // spliceMotifWithAdaptiveBridge()
+    // - Builds entry/exit bridges between skeleton slot and motif
+    // - Uses straight line if endpoints are within tolerance
+    // - Uses adaptive S-curve otherwise (up/down depending on offset)
+    //------------------------------------------------------
+
+    function spliceMotifWithAdaptiveBridge(slotStart, motifStart, motifEnd, slotEnd, tol = 8) {
+        // Entry bridge
+        const dyEntry = motifStart.y - slotStart.y;
+        const dxEntry = motifStart.x - slotStart.x;
+        let entry;
+
+        if (Math.abs(dyEntry) < tol) {
+            // Straight line if nearly aligned
+            entry = `L ${motifStart.x} ${motifStart.y}`;
+        } else {
+            // Adaptive S-curve
+            const entryCtrl1 = {
+                x: slotStart.x + dxEntry / 3,
+                y: slotStart.y + (dyEntry > 0 ? 20 : -20)
+            };
+            const entryCtrl2 = {
+                x: motifStart.x - dxEntry / 3,
+                y: motifStart.y + (dyEntry > 0 ? -20 : 20)
+            };
+            entry = `C ${entryCtrl1.x} ${entryCtrl1.y} ${entryCtrl2.x} ${entryCtrl2.y} ${motifStart.x} ${motifStart.y}`;
+        }
+
+        // Exit bridge
+        const dyExit = slotEnd.y - motifEnd.y;
+        const dxExit = slotEnd.x - motifEnd.x;
+        let exit;
+
+        if (Math.abs(dyExit) < tol) {
+            // Straight line if nearly aligned
+            exit = `L ${slotEnd.x} ${slotEnd.y}`;
+        } else {
+            // Adaptive S-curve
+            const exitCtrl1 = {
+                x: motifEnd.x + dxExit / 3,
+                y: motifEnd.y + (dyExit > 0 ? 20 : -20)
+            };
+            const exitCtrl2 = {
+                x: slotEnd.x - dxExit / 3,
+                y: slotEnd.y + (dyExit > 0 ? -20 : 20)
+            };
+            exit = `C ${exitCtrl1.x} ${exitCtrl1.y} ${exitCtrl2.x} ${exitCtrl2.y} ${slotEnd.x} ${slotEnd.y}`;
+        }
+
+        return { entry, exit };
+    }
+
+    // new support functions
+
+    function parseFullPath(d) {
+        const tokens = d.match(/[a-zA-Z]|-?\d*\.?\d+/g);
+        if (!tokens) return [];
+        const result = [];
+        let i = 0;
+        while (i < tokens.length) {
+            const cmd = tokens[i++];
+            const coords = [];
+            switch (cmd.toUpperCase()) {
+                case "M": case "L":
+                    coords.push({x: parseFloat(tokens[i++]), y: parseFloat(tokens[i++])});
+                    break;
+                case "C":
+                    for (let j=0;j<3;j++) coords.push({x: parseFloat(tokens[i++]), y: parseFloat(tokens[i++])});
+                    break;
+                case "Q":
+                    for (let j=0;j<2;j++) coords.push({x: parseFloat(tokens[i++]), y: parseFloat(tokens[i++])});
+                    break;
+                case "H":
+                    coords.push({x: parseFloat(tokens[i++]), y: null});
+                    break;
+                case "V":
+                    coords.push({x: null, y: parseFloat(tokens[i++])});
+                    break;
+                case "Z": case "z":
+                    break;
+            }
+            result.push({cmd, coords});
+        }
+        return result;
+    }
+
+    function spliceMotifIntoPoints(points, start, end, motifPoints) {
+        const newPoints = [];
+        let inserted = false;
+        for (let i = 0; i < points.length; i++) {
+            const p = points[i];
+            newPoints.push(p);
+            if (!inserted &&
+                Math.abs(p.x - start.x) < 0.5 &&
+                Math.abs(p.y - start.y) < 0.5) {
+                newPoints.push(...motifPoints);
+                newPoints.push(end);
+                inserted = true;
+                while (i+1 < points.length &&
+                Math.abs(points[i+1].x - end.x) < 0.5 &&
+                Math.abs(points[i+1].y - end.y) < 0.5) {
+                    i++;
+                }
+            }
+        }
+        return newPoints;
+    }
+
+
+    //-----------------------------------
+
+    function transformPathD(d, sx, sy, dx, dy) {
+        const commands = parseFullPath(d);
+        let out = "";
+        for (const {cmd, coords} of commands) {
+            out += cmd + " ";
+            if (!coords) continue;
+            for (const c of coords) {
+                let x = c.x, y = c.y;
+                if (x != null) x = x * sx + dx;
+                if (y != null) y = y * sy + dy;
+                out += (x!=null?x:"") + (y!=null?" "+y:"") + " ";
+            }
+        }
+        return out.trim();
+    }
+
+    function transformPathD_save(d, sx, sy, dx, dy) {
+        const commands = d.match(/[a-zA-Z]|-?\d*\.?\d+/g);
+        if (!commands) return "";
+
+        let result = "";
+        let i = 0;
+        while (i < commands.length) {
+            const cmd = commands[i++];
+            result += cmd + " ";
+
+            switch (cmd) {
+                case "M":
+                case "L":
+                {
+                    const x = parseFloat(commands[i++]);
+                    const y = parseFloat(commands[i++]);
+                    const tx = x * sx + dx;
+                    const ty = y * sy + dy;
+                    result += `${tx} ${ty} `;
+                }
+                    break;
+
+                case "C":
+                    for (let j = 0; j < 3; j++) {
+                        const x = parseFloat(commands[i++]);
+                        const y = parseFloat(commands[i++]);
+                        const tx = x * sx + dx;
+                        const ty = y * sy + dy;
+                        result += `${tx} ${ty} `;
+                    }
+                    break;
+
+                case "Q":
+                    for (let j = 0; j < 2; j++) {
+                        const x = parseFloat(commands[i++]);
+                        const y = parseFloat(commands[i++]);
+                        const tx = x * sx + dx;
+                        const ty = y * sy + dy;
+                        result += `${tx} ${ty} `;
+                    }
+                    break;
+
+                case "H":
+                {
+                    const x = parseFloat(commands[i++]);
+                    const tx = x * sx + dx;
+                    result += `${tx} `;
+                }
+                    break;
+
+                case "V":
+                {
+                    const y = parseFloat(commands[i++]);
+                    const ty = y * sy + dy;
+                    result += `${ty} `;
+                }
+                    break;
+
+                case "Z":
+                case "z":
+                    // no coords
+                    break;
+
+                default:
+                    // If unknown command, just copy through
+                    break;
+            }
+        }
+        return result.trim();
+    }
+
+    function insertMotifsIntoSkeleton_save(skeletonData, motifAssignments = {}) {
+        if (!skeletonData || !skeletonData.motifSlots) {
+            console.warn("No motif slots available");
+            return skeletonData;
+        }
+
+        const { points, motifSlots } = skeletonData;
+
+        // We will build a new points array
+        let newPoints = [...points];
+
+        // Process slots in reverse order so splicing doesn't shift indices
+        const slots = [...motifSlots].reverse();
+
+        for (const slot of slots) {
+            const runIndex = slot.gapIndex; // ✅ now 1‑based
+
+            // ✅ Skip if no motif assigned
+            const motifId = motifAssignments[runIndex];
+            if (!motifId) continue;
+
+            // ✅ Load motif from <defs>
+            const motifEl = document.getElementById(motifId);
+            if (!motifEl) {
+                console.error("Motif not found:", motifId);
+                continue;
+            }
+
+            const motifD = motifEl.getAttribute("d");
+            const motifCommands = parseSimplePath(motifD);
+
+            // debugDrawOriginalMotif(motifCommands, slot.start.x, slot.start.y, "red");
+
+            // ✅ Transform motif into skeleton coordinates
+            const motifPoints = transformMotifPoints(motifCommands, slot.start, slot.end);
+
+            // debugDrawMotif(motifPoints, "red");
+
+            // ✅ Splice motif into the points array
+            newPoints = spliceMotifIntoPoints(newPoints, slot.start, slot.end, motifPoints);
+        }
+
+        return {
+            ...skeletonData,
+            points: newPoints
+        };
+    }
+
+    //------------------------------------------------------
+    // insert motif helpers
+
+    function spliceMotifIntoPoints_save(points, start, end, motifPoints) {
+        const newPoints = [];
+        let inserted = false;
+
+        for (let i = 0; i < points.length; i++) {
+            const p = points[i];
+            newPoints.push(p);
+
+            if (!inserted &&
+                Math.abs(p.x - start.x) < 0.5 &&
+                Math.abs(p.y - start.y) < 0.5) {
+                // insert motif points and end
+                newPoints.push(...motifPoints);
+                newPoints.push(end);
+                inserted = true;
+                // skip original end
+                while (i + 1 < points.length &&
+                Math.abs(points[i+1].x - end.x) < 0.5 &&
+                Math.abs(points[i+1].y - end.y) < 0.5) {
+                    i++;
+                }
+            }
+        }
+        return newPoints;
+    }
+
+    function parseSimplePath(d) {
+        const tokens = d.match(/[a-zA-Z]|-?\d*\.?\d+/g);
+        if (!tokens) return [];
+
+        const result = [];
+        let i = 0;
+        while (i < tokens.length) {
+            const cmd = tokens[i++];
+            switch (cmd) {
+                case "M":
+                case "L":
+                    result.push({ cmd, x: parseFloat(tokens[i++]), y: parseFloat(tokens[i++]) });
+                    break;
+                case "C":
+                    for (let j = 0; j < 3; j++) {
+                        result.push({ cmd, x: parseFloat(tokens[i++]), y: parseFloat(tokens[i++]) });
+                    }
+                    break;
+                case "Q":
+                    for (let j = 0; j < 2; j++) {
+                        result.push({ cmd, x: parseFloat(tokens[i++]), y: parseFloat(tokens[i++]) });
+                    }
+                    break;
+                case "H":
+                    result.push({ cmd, x: parseFloat(tokens[i++]), y: null });
+                    break;
+                case "V":
+                    result.push({ cmd, x: null, y: parseFloat(tokens[i++]) });
+                    break;
+                case "Z":
+                case "z":
+                    result.push({ cmd });
+                    break;
+            }
+        }
+        return result;
+    }
+
+    function transformMotifPoints(commands, start, end) {
+        const motifWidth = 100; // motifs are in 0–100 space
+
+        // 1. Compute segment vector
+        const dx = end.x - start.x;
+        const dy = end.y - start.y;
+
+        // 2. Compute segment length
+        const runLength = Math.hypot(dx, dy);
+
+        // 3. Uniform scale based on run length
+        const scale = runLength / motifWidth;
+
+        // 4. Compute angle of the segment
+        const angle = Math.atan2(dy, dx);
+
+        // 5. Compute motif bounding box center
+        let minX = Infinity, maxX = -Infinity;
+        let minY = Infinity, maxY = -Infinity;
+
+        commands.forEach(c => {
+            if (c.x !== undefined) {
+                minX = Math.min(minX, c.x);
+                maxX = Math.max(maxX, c.x);
+            }
+            if (c.y !== undefined) {
+                minY = Math.min(minY, c.y);
+                maxY = Math.max(maxY, c.y);
+            }
+        });
+
+        const motifCenterX = (minX + maxX) / 2;
+        const motifCenterY = (minY + maxY) / 2;
+
+        // 6. Segment midpoint (placement anchor)
+        const midX = (start.x + end.x) / 2;
+        const midY = (start.y + end.y) / 2;
+
+        // 7. Transform each point
+        return commands
+            .filter(c => c.cmd !== "Z")
+            .map(c => {
+                // Local coords centered on motif
+                const lx = (c.x - motifCenterX) * scale;
+                const ly = (c.y - motifCenterY) * scale;
+
+                // Rotate into segment orientation
+                const rx = lx * Math.cos(angle) - ly * Math.sin(angle);
+                const ry = lx * Math.sin(angle) + ly * Math.cos(angle);
+
+                // Translate to segment midpoint
+                return {
+                    x: rx + midX,
+                    y: ry + midY
+                };
+            });
+    }
+
+
+    //------------------------------------------------------
+
+    function insertMotif(modifiedMotif, skeletonData, motifConnectors, gapId) {
+
+        if (modifiedMotif.getAttribute) {
+            modifiedMotif = modifiedMotif.getAttribute("d");
+        }
+
+        // Prepare motif corridor (strip leading M if present)
+        const sanitizeCorridor = (d) => d.replace(/\bM\s*([-\d.]+)[ ,]\s*([-\d.]+)/, 'L $1 $2');
+        const spliceD = sanitizeCorridor(
+            `${motifConnectors.leftConnector} ${modifiedMotif} ${motifConnectors.rightConnector}`
+        );
+
+        // Build continuous path: one initial M, then only L/C…
+        const segments = skeletonData.segments;
+        let d = '';
+
+        segments.forEach((seg, i) => {
+            const isHorizontal = seg.dy === 0 && seg.dx !== 0;
+            const hr = skeletonData.horizontalRuns.find(r => r.segmentIndex === seg.index);
+
+            if (i === 0) {
+                // Initial move
+                d += `M${seg.start.x} ${seg.start.y} `;
+            }
+
+            if (isHorizontal && hr && hr.gapIndex === gapId) {
+                // Insert motif corridor; ensure it continues the current subpath
+                d += spliceD + ' ';
+            } else {
+                // Continue with a line (no new M)
+                d += `L${seg.end.x} ${seg.end.y} `;
+            }
+        });
+
+        // Clone and apply
+        // const skeletonEl = document.getElementById('skeleton');
+        // if (!skeletonEl) return d.trim();
+        //
+        // const clone = skeletonEl.cloneNode(true);
+        // clone.setAttribute('id', 'deco-path');
+        // clone.setAttribute('d', d.trim());
+        // skeletonEl.parentNode.appendChild(clone);
+
+        return d.trim();
+
+    }
+
+    function insertMotif_save10(modifiedMotif, skeletonData, motifConnectors, gapId) {
+        // If modifiedMotif is a DOM element, extract its d attribute
+        if (modifiedMotif.getAttribute) {
+            modifiedMotif = modifiedMotif.getAttribute("d");
+        }
+
+        // Find the horizontal run for this gap
+        const run = skeletonData.horizontalRuns.find(r => r.gapIndex === gapId);
+        if (!run) return "";
+
+        // Build splice corridor: left connector + motif + right connector
+        const spliceD = `${motifConnectors.leftConnector} ${modifiedMotif} ${motifConnectors.rightConnector}`;
+
+        // Reconstruct full skeleton path in segment order
+        const fullPath = skeletonData.segments.map(seg => {
+            if (seg.dx === 0) {
+                // vertical run
+                return `M${seg.start.x} ${seg.start.y} L${seg.end.x} ${seg.end.y}`;
+            } else {
+                // horizontal run
+                const hr = skeletonData.horizontalRuns.find(r => r.segmentIndex === seg.index);
+                if (hr && hr.gapIndex === gapId) {
+                    return spliceD;
+                }
+                return `M${seg.start.x} ${seg.start.y} L${seg.end.x} ${seg.end.y}`;
+            }
+        }).join(" ");
+
+        // Clone the skeleton element
+        const skeletonEl = document.getElementById("skeleton");
+        if (!skeletonEl) return fullPath;
+
+        const clone = skeletonEl.cloneNode(true);
+        clone.setAttribute("id", "deco-path");
+        clone.setAttribute("d", fullPath);
+        skeletonEl.parentNode.appendChild(clone);
+
+        return fullPath;
+    }
+
+    // Fallback: if you don’t have skeletonData.segments, derive it from runs by sorting by y then by x.
+    // This should match your known skeleton order (top-to-bottom verticals interleaved with left-right corridors).
+    function buildDefaultSegments(skeletonData) {
+        const v = skeletonData.verticalRuns.map((_, i) => ({ type: "vertical", index: i }));
+        const h = skeletonData.horizontalRuns.map((_, i) => ({ type: "horizontal", index: i }));
+        // If you know the exact order, encode it here explicitly:
+        // e.g., [v[0], h[0], v[1], h[1], v[2], h[2], ...]
+        // Otherwise, sort by start/end coordinates to best-guess:
+        const ordered = [...v, ...h].sort((a, b) => {
+            const ra = a.type === "vertical" ? skeletonData.verticalRuns[a.index] : skeletonData.horizontalRuns[a.index];
+            const rb = b.type === "vertical" ? skeletonData.verticalRuns[b.index] : skeletonData.horizontalRuns[b.index];
+            const ya = Math.min(ra.start.y, ra.end.y);
+            const yb = Math.min(rb.start.y, rb.end.y);
+            if (ya !== yb) return ya - yb;
+            const xa = Math.min(ra.start.x, ra.end.x);
+            const xb = Math.min(rb.start.x, rb.end.x);
+            return xa - xb;
+        });
+        return ordered;
+    }
+
+    function insertMotif_save(modifiedMotif, skeletonData, motifConnectors, gapId) {
+
+        if (!modifiedMotif || !skeletonData || !motifConnectors) return "";
+
+        // If modifiedMotif is a DOM element, extract its d attribute
+        if (modifiedMotif.getAttribute) {
+            modifiedMotif = modifiedMotif.getAttribute("d");
+        }
+
+        const runIndex = skeletonData.horizontalRuns.findIndex(run => run.gapIndex === gapId);
+        if (runIndex === -1) return "";
+
+        const run = skeletonData.horizontalRuns[runIndex];
+
+        const leftD  = motifConnectors.leftConnector;
+        const rightD = motifConnectors.rightConnector;
+
+        const spliceD = `${leftD} ${modifiedMotif} ${rightD}`;
+
+        const newRuns = [...skeletonData.horizontalRuns];
+        newRuns[runIndex] = { ...run, path: spliceD };
+
+        const fullPath = newRuns
+            .map(r => r.path || `M${r.start.x},${r.start.y} L${r.end.x},${r.end.y}`)
+            .join(" ");
+
+        return fullPath;
+    }
+
+    function placeD(fullD, { stroke = "black", fill = "none", id = "" } = {}) {
+
+        if (!fullD) return null;
+
+        const overlay = document.getElementById("overlay");
+
+        if (!overlay) {
+            console.error("Overlay SVG not found");
+            return null;
+        }
+
+        // Create or update path element
+        let pathEl = overlay.getElementById('deco-path');
+
+        if (!pathEl) {
+            pathEl = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            pathEl.setAttribute("id", 'deco-path');
+            overlay.appendChild(pathEl);
+        }
+
+        console.log('fullD, updating deco-path', fullD);
+
+        pathEl.setAttribute("d", fullD);
+        pathEl.setAttribute("stroke", stroke);
+        pathEl.setAttribute("fill", fill);
+        pathEl.setAttribute("data-test", 'test');
+
+        // pathEl.setAttribute("vector-effect", "non-scaling-stroke");
+
+        return pathEl;
+
+    }
+
+    // Convert mixed-case SVG path d to absolute-only commands (uppercase).
+    // Supports: M, m, L, l, H, h, V, v, C, c, S, s, Q, q, T, t, A, a, Z, z
+    function pathToAbsolute(d, precision = 3) {
+        if (!d) return d;
+        const tokens = d.match(/[a-zA-Z]|-?\d*\.?\d+(?:e[-+]?\d+)?/gi);
+        if (!tokens) return d;
+
+        let i = 0;
+        let cx = 0, cy = 0;            // current point
+        let sx = 0, sy = 0;            // subpath start (for Z)
+        let lastCmd = null;
+        let lastControlX = null, lastControlY = null;
+
+        const out = [];
+
+        function fmt(n) { return Number(n.toFixed(precision)); }
+
+        while (i < tokens.length) {
+            let cmd = tokens[i++];
+            const isRelative = (cmd === cmd.toLowerCase());
+            const C = cmd.toUpperCase();
+
+            // helper to read a number
+            const readNum = () => parseFloat(tokens[i++]);
+
+            if (C === 'Z') {
+                out.push('Z');
+                cx = sx; cy = sy;
+                lastControlX = lastControlY = null;
+                lastCmd = 'Z';
+                continue;
+            }
+
+            if (C === 'M') {
+                // M may be followed by multiple pairs; first is move, rest are implicit L
+                const x = readNum();
+                const y = readNum();
+                const ax = isRelative ? cx + x : x;
+                const ay = isRelative ? cy + y : y;
+                out.push(`M${fmt(ax)},${fmt(ay)}`);
+                cx = ax; cy = ay;
+                sx = cx; sy = cy;
+                lastCmd = 'M';
+                lastControlX = lastControlY = null;
+
+                // subsequent pairs become L
+                while (i < tokens.length && !/^[a-zA-Z]$/.test(tokens[i])) {
+                    const nx = readNum();
+                    const ny = readNum();
+                    const lax = isRelative ? cx + nx : nx;
+                    const lay = isRelative ? cy + ny : ny;
+                    out.push(`L${fmt(lax)},${fmt(lay)}`);
+                    cx = lax; cy = lay;
+                    lastCmd = 'L';
+                    lastControlX = lastControlY = null;
+                }
+                continue;
+            }
+
+            if (C === 'L') {
+                while (i < tokens.length && !/^[a-zA-Z]$/.test(tokens[i])) {
+                    const x = readNum();
+                    const y = readNum();
+                    const ax = isRelative ? cx + x : x;
+                    const ay = isRelative ? cy + y : y;
+                    out.push(`L${fmt(ax)},${fmt(ay)}`);
+                    cx = ax; cy = ay;
+                    lastCmd = 'L';
+                    lastControlX = lastControlY = null;
+                }
+                continue;
+            }
+
+            if (C === 'H') {
+                while (i < tokens.length && !/^[a-zA-Z]$/.test(tokens[i])) {
+                    const x = readNum();
+                    const ax = isRelative ? cx + x : x;
+                    // convert to absolute L
+                    out.push(`L${fmt(ax)},${fmt(cy)}`);
+                    cx = ax;
+                    lastCmd = 'H';
+                    lastControlX = lastControlY = null;
+                }
+                continue;
+            }
+
+            if (C === 'V') {
+                while (i < tokens.length && !/^[a-zA-Z]$/.test(tokens[i])) {
+                    const y = readNum();
+                    const ay = isRelative ? cy + y : y;
+                    out.push(`L${fmt(cx)},${fmt(ay)}`);
+                    cy = ay;
+                    lastCmd = 'V';
+                    lastControlX = lastControlY = null;
+                }
+                continue;
+            }
+
+            if (C === 'C') {
+                while (i < tokens.length && !/^[a-zA-Z]$/.test(tokens[i])) {
+                    const x1 = readNum(), y1 = readNum();
+                    const x2 = readNum(), y2 = readNum();
+                    const x = readNum(), y = readNum();
+                    const ax1 = isRelative ? cx + x1 : x1;
+                    const ay1 = isRelative ? cy + y1 : y1;
+                    const ax2 = isRelative ? cx + x2 : x2;
+                    const ay2 = isRelative ? cy + y2 : y2;
+                    const ax = isRelative ? cx + x : x;
+                    const ay = isRelative ? cy + y : y;
+                    out.push(`C${fmt(ax1)},${fmt(ay1)} ${fmt(ax2)},${fmt(ay2)} ${fmt(ax)},${fmt(ay)}`);
+                    lastControlX = ax2; lastControlY = ay2;
+                    cx = ax; cy = ay;
+                    lastCmd = 'C';
+                }
+                continue;
+            }
+
+            if (C === 'S') {
+                while (i < tokens.length && !/^[a-zA-Z]$/.test(tokens[i])) {
+                    const x2 = readNum(), y2 = readNum();
+                    const x = readNum(), y = readNum();
+                    // reflect previous control if previous was C or S
+                    let rx1, ry1;
+                    if (lastCmd === 'C' || lastCmd === 'S') {
+                        rx1 = cx + (cx - (lastControlX ?? cx));
+                        ry1 = cy + (cy - (lastControlY ?? cy));
+                    } else {
+                        rx1 = cx; ry1 = cy;
+                    }
+                    const ax2 = isRelative ? cx + x2 : x2;
+                    const ay2 = isRelative ? cy + y2 : y2;
+                    const ax = isRelative ? cx + x : x;
+                    const ay = isRelative ? cy + y : y;
+                    out.push(`C${fmt(rx1)},${fmt(ry1)} ${fmt(ax2)},${fmt(ay2)} ${fmt(ax)},${fmt(ay)}`);
+                    lastControlX = ax2; lastControlY = ay2;
+                    cx = ax; cy = ay;
+                    lastCmd = 'S';
+                }
+                continue;
+            }
+
+            if (C === 'Q') {
+                while (i < tokens.length && !/^[a-zA-Z]$/.test(tokens[i])) {
+                    const x1 = readNum(), y1 = readNum();
+                    const x = readNum(), y = readNum();
+                    const ax1 = isRelative ? cx + x1 : x1;
+                    const ay1 = isRelative ? cy + y1 : y1;
+                    const ax = isRelative ? cx + x : x;
+                    const ay = isRelative ? cy + y : y;
+                    out.push(`Q${fmt(ax1)},${fmt(ay1)} ${fmt(ax)},${fmt(ay)}`);
+                    lastControlX = ax1; lastControlY = ay1;
+                    cx = ax; cy = ay;
+                    lastCmd = 'Q';
+                }
+                continue;
+            }
+
+            if (C === 'T') {
+                while (i < tokens.length && !/^[a-zA-Z]$/.test(tokens[i])) {
+                    const x = readNum(), y = readNum();
+                    let rx1, ry1;
+                    if (lastCmd === 'Q' || lastCmd === 'T') {
+                        rx1 = cx + (cx - (lastControlX ?? cx));
+                        ry1 = cy + (cy - (lastControlY ?? cy));
+                    } else {
+                        rx1 = cx; ry1 = cy;
+                    }
+                    const ax = isRelative ? cx + x : x;
+                    const ay = isRelative ? cy + y : y;
+                    out.push(`Q${fmt(rx1)},${fmt(ry1)} ${fmt(ax)},${fmt(ay)}`);
+                    lastControlX = rx1; lastControlY = ry1;
+                    cx = ax; cy = ay;
+                    lastCmd = 'T';
+                }
+                continue;
+            }
+
+            if (C === 'A') {
+                // rx ry x-axis-rotation large-arc-flag sweep-flag x y
+                while (i < tokens.length && !/^[a-zA-Z]$/.test(tokens[i])) {
+                    const rx = tokens[i++], ry = tokens[i++], rot = tokens[i++], laf = tokens[i++], sf = tokens[i++];
+                    const x = readNum(), y = readNum();
+                    const ax = isRelative ? cx + x : x;
+                    const ay = isRelative ? cy + y : y;
+                    // keep rx,ry,rot,flags as-is (approximate); endpoint made absolute
+                    out.push(`A${rx} ${ry} ${rot} ${laf} ${sf} ${fmt(ax)},${fmt(ay)}`);
+                    cx = ax; cy = ay;
+                    lastControlX = lastControlY = null;
+                    lastCmd = 'A';
+                }
+                continue;
+            }
+
+            // Unknown command fallback: copy raw tokens until next command
+            while (i < tokens.length && !/^[a-zA-Z]$/.test(tokens[i])) {
+                out.push(tokens[i++]);
+            }
+        }
+
+        return out.join(' ').replace(/\s+/g, ' ').trim();
+    }
+
+    /**
+     * convertPathToAbsoluteWithSuffix
+     * - inputId: id of existing <path> element
+     * - opts: { precision: number (decimal places), appendTo: Element (optional parent), diagnostics: boolean }
+     * Returns the newly created <path> element (or null on error).
+     */
+    function convertPathToAbsoluteWithSuffix(inputId, opts = {}) {
+        const precision = typeof opts.precision === 'number' ? opts.precision : 3;
+        const diagnostics = !!opts.diagnostics;
+
+        const src = document.getElementById(inputId);
+        if (!src || src.tagName.toLowerCase() !== 'path') {
+            if (diagnostics) console.error('convertPathToAbsoluteWithSuffix: source path not found or not a <path>', inputId);
+            return null;
+        }
+
+        const d = src.getAttribute('d');
+        if (!d) {
+            if (diagnostics) console.error('convertPathToAbsoluteWithSuffix: source path has no d attribute');
+            return null;
+        }
+
+        const fmt = n => Number(n.toFixed(precision));
+
+        function pathToAbsolute(dStr) {
+            const tokens = dStr.match(/[a-zA-Z]|-?\d*\.?\d+(?:e[-+]?\d+)?/gi);
+            if (!tokens) return dStr;
+
+            let i = 0;
+            let cx = 0, cy = 0;
+            let sx = 0, sy = 0;
+            let lastCmd = null;
+            let lastControlX = null, lastControlY = null;
+            const out = [];
+            const readNum = () => parseFloat(tokens[i++]);
+
+            while (i < tokens.length) {
+                let cmd = tokens[i++];
+                const isRelative = (cmd === cmd.toLowerCase());
+                const C = cmd.toUpperCase();
+
+                if (C === 'Z') {
+                    out.push('Z');
+                    cx = sx; cy = sy;
+                    lastControlX = lastControlY = null;
+                    lastCmd = 'Z';
+                    continue;
+                }
+
+                if (C === 'M') {
+                    const x = readNum(), y = readNum();
+                    const ax = isRelative ? cx + x : x;
+                    const ay = isRelative ? cy + y : y;
+                    out.push(`M${fmt(ax)},${fmt(ay)}`);
+                    cx = ax; cy = ay; sx = cx; sy = cy; lastCmd = 'M'; lastControlX = lastControlY = null;
+                    while (i < tokens.length && !/^[a-zA-Z]$/.test(tokens[i])) {
+                        const nx = readNum(), ny = readNum();
+                        const lax = isRelative ? cx + nx : nx;
+                        const lay = isRelative ? cy + ny : ny;
+                        out.push(`L${fmt(lax)},${fmt(lay)}`);
+                        cx = lax; cy = lay; lastCmd = 'L'; lastControlX = lastControlY = null;
+                    }
+                    continue;
+                }
+
+                if (C === 'L') {
+                    while (i < tokens.length && !/^[a-zA-Z]$/.test(tokens[i])) {
+                        const x = readNum(), y = readNum();
+                        const ax = isRelative ? cx + x : x;
+                        const ay = isRelative ? cy + y : y;
+                        out.push(`L${fmt(ax)},${fmt(ay)}`);
+                        cx = ax; cy = ay; lastCmd = 'L'; lastControlX = lastControlY = null;
+                    }
+                    continue;
+                }
+
+                if (C === 'H') {
+                    while (i < tokens.length && !/^[a-zA-Z]$/.test(tokens[i])) {
+                        const x = readNum();
+                        const ax = isRelative ? cx + x : x;
+                        out.push(`L${fmt(ax)},${fmt(cy)}`);
+                        cx = ax; lastCmd = 'H'; lastControlX = lastControlY = null;
+                    }
+                    continue;
+                }
+
+                if (C === 'V') {
+                    while (i < tokens.length && !/^[a-zA-Z]$/.test(tokens[i])) {
+                        const y = readNum();
+                        const ay = isRelative ? cy + y : y;
+                        out.push(`L${fmt(cx)},${fmt(ay)}`);
+                        cy = ay; lastCmd = 'V'; lastControlX = lastControlY = null;
+                    }
+                    continue;
+                }
+
+                if (C === 'C') {
+                    while (i < tokens.length && !/^[a-zA-Z]$/.test(tokens[i])) {
+                        const x1 = readNum(), y1 = readNum();
+                        const x2 = readNum(), y2 = readNum();
+                        const x = readNum(), y = readNum();
+                        const ax1 = isRelative ? cx + x1 : x1;
+                        const ay1 = isRelative ? cy + y1 : y1;
+                        const ax2 = isRelative ? cx + x2 : x2;
+                        const ay2 = isRelative ? cy + y2 : y2;
+                        const ax = isRelative ? cx + x : x;
+                        const ay = isRelative ? cy + y : y;
+                        out.push(`C${fmt(ax1)},${fmt(ay1)} ${fmt(ax2)},${fmt(ay2)} ${fmt(ax)},${fmt(ay)}`);
+                        lastControlX = ax2; lastControlY = ay2; cx = ax; cy = ay; lastCmd = 'C';
+                    }
+                    continue;
+                }
+
+                if (C === 'S') {
+                    while (i < tokens.length && !/^[a-zA-Z]$/.test(tokens[i])) {
+                        const x2 = readNum(), y2 = readNum();
+                        const x = readNum(), y = readNum();
+                        let rx1, ry1;
+                        if (lastCmd === 'C' || lastCmd === 'S') {
+                            rx1 = cx + (cx - (lastControlX ?? cx));
+                            ry1 = cy + (cy - (lastControlY ?? cy));
+                        } else {
+                            rx1 = cx; ry1 = cy;
+                        }
+                        const ax2 = isRelative ? cx + x2 : x2;
+                        const ay2 = isRelative ? cy + y2 : y2;
+                        const ax = isRelative ? cx + x : x;
+                        const ay = isRelative ? cy + y : y;
+                        out.push(`C${fmt(rx1)},${fmt(ry1)} ${fmt(ax2)},${fmt(ay2)} ${fmt(ax)},${fmt(ay)}`);
+                        lastControlX = ax2; lastControlY = ay2; cx = ax; cy = ay; lastCmd = 'S';
+                    }
+                    continue;
+                }
+
+                if (C === 'Q') {
+                    while (i < tokens.length && !/^[a-zA-Z]$/.test(tokens[i])) {
+                        const x1 = readNum(), y1 = readNum();
+                        const x = readNum(), y = readNum();
+                        const ax1 = isRelative ? cx + x1 : x1;
+                        const ay1 = isRelative ? cy + y1 : y1;
+                        const ax = isRelative ? cx + x : x;
+                        const ay = isRelative ? cy + y : y;
+                        out.push(`Q${fmt(ax1)},${fmt(ay1)} ${fmt(ax)},${fmt(ay)}`);
+                        lastControlX = ax1; lastControlY = ay1; cx = ax; cy = ay; lastCmd = 'Q';
+                    }
+                    continue;
+                }
+
+                if (C === 'T') {
+                    while (i < tokens.length && !/^[a-zA-Z]$/.test(tokens[i])) {
+                        const x = readNum(), y = readNum();
+                        let rx1, ry1;
+                        if (lastCmd === 'Q' || lastCmd === 'T') {
+                            rx1 = cx + (cx - (lastControlX ?? cx));
+                            ry1 = cy + (cy - (lastControlY ?? cy));
+                        } else {
+                            rx1 = cx; ry1 = cy;
+                        }
+                        const ax = isRelative ? cx + x : x;
+                        const ay = isRelative ? cy + y : y;
+                        out.push(`Q${fmt(rx1)},${fmt(ry1)} ${fmt(ax)},${fmt(ay)}`);
+                        lastControlX = rx1; lastControlY = ry1; cx = ax; cy = ay; lastCmd = 'T';
+                    }
+                    continue;
+                }
+
+                if (C === 'A') {
+                    while (i < tokens.length && !/^[a-zA-Z]$/.test(tokens[i])) {
+                        const rx = tokens[i++], ry = tokens[i++], rot = tokens[i++], laf = tokens[i++], sf = tokens[i++];
+                        const x = readNum(), y = readNum();
+                        const ax = isRelative ? cx + x : x;
+                        const ay = isRelative ? cy + y : y;
+                        out.push(`A${rx} ${ry} ${rot} ${laf} ${sf} ${fmt(ax)},${fmt(ay)}`);
+                        cx = ax; cy = ay; lastControlX = lastControlY = null; lastCmd = 'A';
+                    }
+                    continue;
+                }
+
+                // fallback: copy raw tokens until next command
+                while (i < tokens.length && !/^[a-zA-Z]$/.test(tokens[i])) {
+                    out.push(tokens[i++]);
+                }
+            }
+
+            return out.join(' ').replace(/\s+/g, ' ').trim();
+        }
+
+        const absoluteD = pathToAbsolute(d);
+        const newId = `${inputId}-absolute`;
+        const clone = src.cloneNode(true);
+        clone.setAttribute('id', newId);
+        clone.setAttribute('d', absoluteD);
+
+        const parent = opts.appendTo instanceof Element ? opts.appendTo : src.parentNode;
+        parent.appendChild(clone);
+
+        if (diagnostics) {
+            console.log('convertPathToAbsoluteWithSuffix:', { inputId, newId, precision });
+            console.log('original d snippet:', d.slice(0, 200));
+            console.log('absolute d snippet:', absoluteD.slice(0, 200));
+        }
+
+        return clone;
+    }
+
+    /**
+     * ensureSinglePath(d)
+     * - Accepts an SVG <path> element
+     * - Ensures the path data has only one subpath (one initial M, no subsequent M/Z)
+     * - Converts subsequent M commands into L to continue the path
+     * - Removes Z (closepath) commands
+     */
+
+    function ensureSingleD(d, svgEl) {
+
+        console.log('ensureSingleD');
+
+        if (!d) return "";
+
+        // Clone original
+        const original = d;
+
+        // Normalize spacing
+        let out = d.trim().replace(/\s+/g, " ");
+
+        let first = true;
+        // Replace M/m followed by coordinates
+        out = out.replace(/([Mm])\s*([-0-9.]+)[ ,]\s*([-0-9.]+)/g, (match, cmd, x, y) => {
+            if (first) {
+                first = false;
+                return `M${x} ${y}`; // keep the first move
+            }
+            return `L${x} ${y}`;   // convert subsequent moves to line‑to
+        });
+
+        // Remove Z/z
+        out = out.replace(/[Zz]/g, "");
+
+        const sanitized = out.trim();
+
+        // Compare pre vs post
+        if (original !== sanitized) {
+            console.log("ensureSingleD: path string was modified.");
+        } else {
+            console.log("ensureSingleD: no changes made.");
+        }
+
+        // Check for extra M commands beyond the first
+        const mMatches = sanitized.match(/[Mm]/g) || [];
+        if (mMatches.length > 1) {
+            console.warn(`ensureSingleD: sanitized string still contains ${mMatches.length - 1} extra 'M' commands.`);
+
+            // Optional diagnostic overlay: draw red markers at seam points
+            if (svgEl) {
+                const coords = [...sanitized.matchAll(/M\s*([-0-9.]+)[ ,]\s*([-0-9.]+)/g)];
+                coords.slice(1).forEach((m, idx) => {
+                    const x = parseFloat(m[1]);
+                    const y = parseFloat(m[2]);
+                    const diag = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                    diag.setAttribute("cx", x);
+                    diag.setAttribute("cy", y);
+                    diag.setAttribute("r", 5);
+                    diag.setAttribute("fill", "red");
+                    diag.setAttribute("stroke", "black");
+                    diag.setAttribute("stroke-width", "1");
+                    diag.setAttribute("id", `seam-marker-${idx}`);
+                    svgEl.appendChild(diag);
+                });
+                console.log("ensureSingleD: diagnostic markers added for extra M commands.");
+            }
+        } else {
+            console.log("ensureSingleD: only one 'M' command remains (at start).");
+        }
+
+        return sanitized;
+    }
+
+    function ensureSingleD_save3(d) {
+        if (!d) return "";
+
+        // Normalize spacing
+        let out = d.trim().replace(/\s+/g, " ");
+
+        let first = true;
+        // Match M/m followed by coordinate pairs
+        out = out.replace(/[Mm][^MmZz]*/g, (match) => {
+            if (first) {
+                first = false;
+                return match; // keep the first full M command
+            }
+            // Replace the leading M with L, keep the coordinates
+            return match.replace(/^[Mm]/, "L");
+        });
+
+        // Remove Z/z
+        out = out.replace(/[Zz]/g, "");
+
+        return out.trim();
+    }
+
+    function ensureSingleD_save2(d) {
+        if (!d) return "";
+
+        // Normalize spacing
+        let out = d.trim().replace(/\s+/g, " ");
+
+        let first = true;
+        out = out.replace(/[Mm]/g, () => {
+            if (first) {
+                first = false;
+                return "M"; // keep the very first M
+            }
+            return "L"; // convert all others
+        });
+
+        // Remove Z/z
+        out = out.replace(/[Zz]/g, "");
+
+        return out.trim();
+    }
+
+    function ensureSingleD_save(d) {
+        if (!d) return "";
+
+        // Normalize spacing
+        let out = d.trim().replace(/\s+/g, " ");
+
+        // Find the first M/m
+        const firstMatch = out.match(/[Mm][^MmZz]*/);
+        if (!firstMatch) return out;
+
+        const headEnd = out.indexOf(firstMatch[0]) + firstMatch[0].length;
+        const head = out.slice(0, headEnd);
+        const tail = out.slice(headEnd);
+
+        // Replace ALL subsequent M/m with L
+        const tailSanitized = tail.replace(/[Mm](?=\s*[-\d.]+)/g, "L");
+
+        // Remove Z/z
+        const tailNoClose = tailSanitized.replace(/[Zz]/g, "");
+
+        return (head + " " + tailNoClose).trim();
+    }
+
+    function checkPath(pathEl, svgEl) {
+
+        // Check for extra M commands beyond the first
+
+        const d = pathEl.getAttribute('d');
+
+        const mMatches = d.match(/[Mm]/g) || [];
+
+        if (mMatches.length > 1) {
+            console.warn(`checkPath: sanitized string still contains ${mMatches.length - 1} extra 'M' commands.`);
+
+            // Optional diagnostic overlay: draw red markers at seam points
+            if (svgEl) {
+                const coords = [...d.matchAll(/M\s*([-0-9.]+)[ ,]\s*([-0-9.]+)/g)];
+                coords.slice(1).forEach((m, idx) => {
+                    const x = parseFloat(m[1]);
+                    const y = parseFloat(m[2]);
+                    const diag = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                    diag.setAttribute("cx", x);
+                    diag.setAttribute("cy", y);
+                    diag.setAttribute("r", 5);
+                    diag.setAttribute("fill", "red");
+                    diag.setAttribute("stroke", "black");
+                    diag.setAttribute("stroke-width", "1");
+                    diag.setAttribute("id", `seam-marker-${idx}`);
+                    svgEl.appendChild(diag);
+                });
+                console.log("checkPath: diagnostic markers added for extra M commands.");
+            }
+
+        } else {
+            console.log("checkPath: only one 'M' command remains (at start).");
+        }
+    }
+
+
+    // window.convertSvgToAbsolute = convertPathToAbsoluteWithSuffix();
+    // const newPath = convertPathToAbsoluteWithSuffix('motif-heart-health', { precision: 3, diagnostics: true });
+
+    // ✅ Define motif assignments here
+    const motifAssignments = {
+        1: "motif-heart-health"   // only first horizontal run
+        // 2: "motifCar",
+        // 3: null,
+    };
+
+    // --- Initialize ---
+    window.addEventListener('resize', () => {
+        runMotifDebug();
+        // runTracerBuild(motifAssignments);
+    });
+
+    window.addEventListener('load', () => {
+        runMotifDebug();
+        // runTracerBuild(motifAssignments);
+    });
+
+
+
+
+    function runMotifDebug() {
+
+        // window.scrollTo(0, 0);
+
+        document.documentElement.scrollTop = 0;
+        document.body.scrollTop = 0;
+
+        resizeSVG();
+
+        const skeletonData = buildSkeleton(50); // min gap size
+
+        console.log('skeletonData', skeletonData);
+
+        const modifiedMotifD = placeMotif(skeletonData);
+
+        // insertMotifIntoOverlay(modifiedMotifD);
+        // previewBridges(modifiedMotifD, skeletonData, 0);
+
+        console.log('modified Motif', modifiedMotifD);
+
+        const motifConnectorsD =
+            getMotifConnectors(modifiedMotifD, skeletonData, 0);
+
+        // console.log('motif Connectors', motifConnectorsD);
+
+        const newD =
+            insertMotif(modifiedMotifD, skeletonData, motifConnectorsD, 1);
+
+        const svgEl = document.getElementById('overlay');
+
+        const newSingleD = ensureSingleD(newD, svgEl);
+
+        // console.log('newSingleD', newSingleD);
+
+        const decoPath = placeD(newSingleD);
+
+        // console.log('decoPath', decoPath);
+
+        // checkPath(decoPath);
+
+        // const tracerState = initTracer(150);
+        // const tracerCleanup = runTracerAnimation(tracerState);
+
+
+        // NEW:
+        // const tracerState = initTracerState(150);
+        // runTracerAnimationV2(tracerState);
+
+
+        // runTracerTest(
+        //     document.getElementById("deco-path"),
+        //     document.getElementById("tracer-test")
+        // );
+
+        // runTracerVisibleWhenInViewport(tracerState);
+
+        initTracer();
+
+
+    }
+
+    function runTracerVisibleWhenInViewport(state) {
+        const {
+            pathEl,
+            tracerSegment,
+            tracerOverlay,
+            segmentLengthRatio = 0.05,
+            samples = 40
+        } = state;
+
+        const pathLength = pathEl.getTotalLength();
+        const segmentLength = pathLength * segmentLengthRatio;
+
+        const svgPoint = pathEl.ownerSVGElement.createSVGPoint();
+
+        function update() {
+            const scrollY = window.scrollY;
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+
+            const maxScroll = Math.max(
+                1,
+                document.documentElement.scrollHeight - viewportHeight
+            );
+            const progress = scrollY / maxScroll;
+
+            const endLen = pathLength * progress;
+            let startLen = endLen - segmentLength;
+            if (startLen < 0) startLen = 0;
+
+            // --- 1. Compute end point in screen space ---
+            const endPoint = pathEl.getPointAtLength(endLen);
+            svgPoint.x = endPoint.x;
+            svgPoint.y = endPoint.y;
+
+            const ctm = pathEl.getScreenCTM();
+            const screenPoint = svgPoint.matrixTransform(ctm);
+
+            const screenX = screenPoint.x;
+            const screenY = screenPoint.y;
+
+            // --- 2. Check if motif segment is in viewport ---
+            const inViewport =
+                screenX >= 0 &&
+                screenX <= viewportWidth &&
+                screenY >= 0 &&
+                screenY <= viewportHeight;
+
+            if (!inViewport) {
+                tracerSegment.setAttribute("d", "");
+                return;
+            }
+
+            // --- 3. Build tracer path (mapped into tracer viewBox) ---
+            const tracerVB = tracerOverlay.viewBox.baseVal;
+            const tracerVBWidth = tracerVB.width;
+            const tracerVBHeight = tracerVB.height;
+
+            const dParts = [];
+            const step = (endLen - startLen) / Math.max(samples - 1, 1);
+
+            for (let i = 0; i < samples; i++) {
+                const len = startLen + i * step;
+                const p = pathEl.getPointAtLength(len);
+
+                svgPoint.x = p.x;
+                svgPoint.y = p.y;
+                const sp = svgPoint.matrixTransform(ctm);
+
+                const nx = sp.x / viewportWidth;
+                const ny = sp.y / viewportHeight;
+
+                const vx = nx * tracerVBWidth;
+                const vy = ny * tracerVBHeight;
+
+                dParts.push(i === 0 ? `M ${vx} ${vy}` : `L ${vx} ${vy}`);
+            }
+
+            tracerSegment.setAttribute("d", dParts.join(" "));
+        }
+
+        window.addEventListener("scroll", update);
+        update();
+    }
+
+    function runTracerTest(pathEl, tracerEl) {
+        const pathLength = pathEl.getTotalLength();
+        const segmentLength = pathLength * 0.05; // 5% of path
+        const samples = 40;
+
+        function update() {
+            const scrollY = window.scrollY;
+            const viewportHeight = window.innerHeight;
+            const maxScroll = Math.max(
+                1,
+                document.documentElement.scrollHeight - viewportHeight
+            );
+
+            const progress = scrollY / maxScroll;
+
+            const endLen = pathLength * progress;
+            let startLen = endLen - segmentLength;
+            if (startLen < 0) startLen = 0;
+
+            const step = (endLen - startLen) / (samples - 1);
+            const d = [];
+
+            for (let i = 0; i < samples; i++) {
+                const len = startLen + i * step;
+                const p = pathEl.getPointAtLength(len);
+                d.push(i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`);
+            }
+
+            tracerEl.setAttribute("d", d.join(" "));
+        }
+
+        window.addEventListener("scroll", update);
+        update();
+    }
+
+
+    function runTracerBuild(motifAssignments = {}) {
+
+        // ✅ Clean up previous tracer animation
+        if (tracerCleanup) {
+            console.log('Cleaning up previous tracer');
+            tracerCleanup();
+        }
+
+        resizeSVG();
+
+        // ✅ 1. Build skeleton
+        const skeletonData = buildSkeleton(50); // min gap size
+
+        // ✅ Optional diagnostics (unchanged)
+        drawGapDiagnostics(
+            document.getElementById('overlay'),
+            skeletonData.points,
+            skeletonData.gaps,
+            50
+        );
+
+        // ✅ 2. Determine if motifs are enabled
+        const hasMotifs = Object.keys(motifAssignments).length > 0;
+
+        if (!hasMotifs) {
+            // ✅ 3A. No motifs → build default decorative path
+            buildCurvyPath(skeletonData, 50, 80, 20, "curvy-base");
+            tracerCleanup = initTracer(150);
+            return;
+        }
+
+        // ✅ 3B. Motifs enabled → modify skeleton
+        const skeletonWithMotifs = insertMotifsIntoSkeleton(skeletonData, motifAssignments);
+
+        // ✅ 4. Build final decorative path with motifs
+        buildCurvyPath(skeletonWithMotifs, 50, 80, 20, "deco-path");
+
+        // ✅ 5. Initialize tracer (auto-selects deco-path)
+        tracerCleanup = initTracer(150);
+    }
+
+
+    //----------------------------------------------
+    // Diagnostics
+
+
+    function debugDrawMotif(points, color = "red") {
+        const svg = document.getElementById("overlay");
+        if (!svg) return;
+
+        const p = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
+        p.setAttribute("points", points.map(pt => `${pt.x},${pt.y}`).join(" "));
+        p.setAttribute("fill", "none");
+        p.setAttribute("stroke", color);
+        p.setAttribute("stroke-width", "2");
+        p.setAttribute("opacity", "0.7");
+        p.classList.add("motif-debug");
+
+        svg.appendChild(p);
+    }
+
+    function debugDrawOriginalMotif(commands, startX = 0, startY = 0, color = "blue") {
+        const svg = document.getElementById("overlay");
+        if (!svg) return;
+
+        const pts = commands
+            .filter(c => c.x !== undefined)
+            .map(c => `${c.x + startX},${c.y + startY}`)
+            .join(" ");
+
+        const p = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
+        p.setAttribute("points", pts);
+        p.setAttribute("fill", "none");
+        p.setAttribute("stroke", color);
+        p.setAttribute("stroke-width", "2");
+        p.setAttribute("opacity", "0.4");
+        p.classList.add("motif-debug-original");
+
+        svg.appendChild(p);
+    }
+
+    function drawGapDiagnostics(svg, rects, gaps, sideWidth = 50) {
+        // Remove old overlay
+        let diagGroup = document.getElementById('gap-diagnostics');
+        if (diagGroup) diagGroup.remove();
+
+        diagGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        diagGroup.setAttribute('id', 'gap-diagnostics');
+        svg.appendChild(diagGroup);
+
+        const viewWidth = window.visualViewport ? window.visualViewport.width : window.innerWidth;
+        const L = Math.round(viewWidth * 0.05);
+        const R = Math.round(viewWidth * 0.95);
+
+        // Gutter corridors (constant side tolerance)
+        const sideTol = sideWidth * 0.4;
+        const gutterWidth = sideTol * 2;
+        const fullHeight = document.documentElement.scrollHeight;
+
+        [L, R].forEach(laneX => {
+            const r = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            r.setAttribute('x', laneX - sideTol);
+            r.setAttribute('y', 0);
+            r.setAttribute('width', gutterWidth);
+            r.setAttribute('height', fullHeight);
+            r.setAttribute('fill', 'rgba(0, 255, 0, 0.15)');
+            diagGroup.appendChild(r);
+        });
+
+        // Gap corridors (variable tolerance) — iterate by rect pairs
+        for (let i = 0; i < rects.length - 1; i++) {
+            const top = rects[i].bottom;
+            const bottom = rects[i + 1].top;
+            const gapId = `gap${i}`;
+            const gapInfo = gaps[gapId];
+
+            if (!gapInfo || gapInfo.tol == null) continue; // skip small/invalid gaps
+
+            const mid = (top + bottom) / 2;
+            const tol = gapInfo.tol;
+
+            if (!Number.isFinite(mid) || !Number.isFinite(tol)) {
+                console.warn('[diagnostics] Skipping gap due to non-finite values', { i, mid, tol, gapInfo });
+                continue;
+            }
+
+            const bandTop = mid - tol;
+            const bandHeight = tol * 2;
+
+            const r = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            r.setAttribute('x', 0);
+            r.setAttribute('y', bandTop);
+            r.setAttribute('width', viewWidth);
+            r.setAttribute('height', bandHeight);
+            r.setAttribute('fill', 'rgba(0, 0, 255, 0.15)');
+            diagGroup.appendChild(r);
+        }
+
+        console.log('[diagnostics] Gap corridors drawn');
+    }
+
+
+    //----------------------------------------------
+    // 12/29/2025 tracer code
+    // https://copilot.microsoft.com/chats/3rhDo5dYd4EpanpfdApPt
+    //----------------------------------------------
+
+    const DEBUG_TRACER = true;
+
+    // -------------------------
+    // Helpers
+    // -------------------------
+
+    function clamp01(v) {
+        return Math.min(Math.max(v, 0), 1);
+    }
+
+    function computeScrollMetrics(lastScrollY, lastProgress) {
+        const scrollY = window.scrollY;
+        const maxScroll = Math.max(
+            1,
+            document.documentElement.scrollHeight - window.innerHeight
+        );
+
+        const scrollProgress = Math.min(Math.max(scrollY / maxScroll, 0), 1);
+        const scrollDelta = scrollY - lastScrollY;
+        const scrollDirection = scrollDelta >= 0 ? "down" : "up";
+        const baseDelta = scrollProgress - lastProgress;
+
+        return { scrollY, scrollProgress, scrollDelta, scrollDirection, baseDelta };
+    }
+
+    function computeSlopeFactor(pathEl, pathLength, progress) {
+        const len = pathLength * progress;
+        const point = pathEl.getPointAtLength(len);
+        const aheadLen = Math.min(pathLength, len + 5);
+        const aheadPt = pathEl.getPointAtLength(aheadLen);
+
+        const dy = aheadPt.y - point.y;
+        const dx = aheadPt.x - point.x;
+        const slopeFactor = Math.abs(dy) / (Math.abs(dx) + Math.abs(dy) + 1e-6);
+
+        return { point, slopeFactor };
+    }
+
+    function computeViewportBand() {
+        const vh = window.innerHeight;
+        return {
+            bandTop: vh * 0.30,
+            bandBottom: vh * 0.70,
+            bandCenter: vh * 0.50
+        };
+    }
+
+    function mapPathYToViewportY(y_path) {
+        return y_path - window.scrollY;
+    }
+
+    function computeEdgeFactor(viewportY, band, scrollDirection) {
+        const { bandCenter } = band;
+        const k = 0.002;
+
+        let edgeFactor = 1.0;
+
+        if (scrollDirection === "down") {
+            edgeFactor = viewportY < bandCenter
+                ? 1 + k * (bandCenter - viewportY)
+                : 1 / (1 + k * (viewportY - bandCenter));
+        } else {
+            edgeFactor = viewportY > bandCenter
+                ? 1 + k * (viewportY - bandCenter)
+                : 1 / (1 + k * (bandCenter - viewportY));
+        }
+
+        return edgeFactor;
+    }
+
+    function computeSpeedMultiplier(slopeFactor, edgeFactor) {
+        return (0.5 + slopeFactor) * edgeFactor;
+    }
+
+    // -------------------------
+    // initTracerState
+    // -------------------------
+
+    function initTracerState(segmentLength) {
+        const pathEl = document.getElementById("deco-path");
+        const tracerSegment = document.getElementById("tracer-segment");
+        const svgScroll = document.getElementById("overlay");
+        const tracerOverlay = document.getElementById("tracer-overlay");
+
+        if (!pathEl || !tracerSegment || !svgScroll || !tracerOverlay) {
+            console.error("Missing required SVG elements");
+            return null;
+        }
+
+        return {
+            pathEl,
+            pathLength: pathEl.getTotalLength(),
+            segmentLength,       // <-- caller‑controlled, no defaults here
+            tracerSegment,
+            svgScroll,
+            tracerOverlay
+        };
+    }
+
+    function runInlineTracer(pathEl) {
+        const pathLength = pathEl.getTotalLength();
+        pathEl.style.strokeDasharray = pathLength;
+
+        window.addEventListener("scroll", () => {
+            const scrollY = window.scrollY;
+            const maxScroll =
+                document.documentElement.scrollHeight - window.innerHeight || 1;
+
+            const progress = scrollY / maxScroll;
+            const drawLen = pathLength * progress;
+
+            pathEl.style.strokeDashoffset = pathLength - drawLen;
+        });
+    }
+
+    function runPathSegmentDemo(pathEl, tracerSegment, segmentLength = 150, speed = 0.0005) {
+        const pathLength = pathEl.getTotalLength();
+        let t = 0; // progress 0 → 1
+
+        function frame() {
+            t += speed;
+            if (t > 1) t = 0;
+
+            const endLen = pathLength * t;
+            let startLen = endLen - segmentLength;
+            if (startLen < 0) startLen = 0;
+
+            const samples = 20;
+            const step = (endLen - startLen) / Math.max(samples - 1, 1);
+            let dParts = [];
+
+            for (let i = 0; i < samples; i++) {
+                const len = (i === samples - 1) ? endLen : (startLen + i * step);
+                const p = pathEl.getPointAtLength(len);
+
+                if (i === 0) {
+                    dParts.push(`M ${p.x} ${p.y}`);
+                } else {
+                    dParts.push(`L ${p.x} ${p.y}`);
+                }
+            }
+
+            tracerSegment.setAttribute("d", dParts.join(" "));
+            requestAnimationFrame(frame);
+        }
+
+        frame();
+    }
+
+
+    // -------------------------
+    // runTracerAnimationV2
+    // -------------------------
+
+    function runTracerAnimationV2(state) {
+        const {
+            pathEl,
+            pathLength,
+            segmentLength,
+            tracerSegment,
+            svgScroll,
+            tracerOverlay
+        } = state;
+
+        const tracerVBHeight = tracerOverlay.viewBox.baseVal.height;
+
+        window.addEventListener("scroll", () => {
+            const scrollY = window.scrollY;
+            const viewportHeight = window.innerHeight;
+
+            const maxScroll = Math.max(
+                1,
+                document.documentElement.scrollHeight - viewportHeight
+            );
+            const progress = scrollY / maxScroll;
+
+            const endLen = pathLength * progress;
+            let startLen = endLen - segmentLength;
+            if (startLen < 0) startLen = 0;
+
+            const viewportWidth = window.innerWidth;
+            const scrollSVGWidth = svgScroll.clientWidth;
+            const scaleX = viewportWidth / scrollSVGWidth;
+
+            const samples = 20;
+            const step = (endLen - startLen) / Math.max(samples - 1, 1);
+            let dParts = [];
+
+            for (let i = 0; i < samples; i++) {
+                const len = (i === samples - 1) ? endLen : (startLen + i * step);
+                const p = pathEl.getPointAtLength(len);
+
+                const vx = p.x * scaleX;
+
+                const screenY = p.y - scrollY;
+
+                // clamp to viewport
+                const clamped = Math.max(0, Math.min(viewportHeight, screenY));
+
+                // map into tracer viewBox
+                const vy = (clamped / viewportHeight) * tracerVBHeight;
+
+                if (i === 0) dParts.push(`M ${vx} ${vy}`);
+                else dParts.push(`L ${vx} ${vy}`);
+
+                if (i === samples - 1) {
+                    console.log("[TRACER vs PATH]", {
+                        scrollY,
+                        path_x: p.x,
+                        path_y: p.y,
+                        screenY,
+                        clamped,
+                        tracer_x: vx,
+                        tracer_y: vy,
+                        delta_x: vx - p.x,
+                        delta_y: vy - p.y,
+                        scaleX,
+                        scrollSVGWidth,
+                        viewportWidth,
+                        tracerVBHeight,
+                        viewportHeight
+                    });
+                }
+            }
+
+            tracerSegment.setAttribute("d", dParts.join(" "));
+        });
+    }
+
+    function runTracerAnimationV2_save(state) {
+        if (!state) return;
+
+        const {
+            pathEl,
+            pathLength,
+            segmentLength,
+            tracerSegment
+        } = state;
+
+        let {
+            lastProgress,
+            lastScrollY,
+            lastX,
+            lastY,
+            frameCount,
+            oscillationCount,
+            cumulativeScrollDelta,
+            cumulativeProgressDeltaAbs,
+            diffHistory,
+            efficiencyHistory,
+            jitterHistory,
+            lastProgressDirection
+        } = state;
+
+        window.addEventListener('scroll', () => {
+            frameCount++;
+
+            // 1. Scroll metrics
+            const {
+                scrollY,
+                scrollProgress,
+                scrollDelta,
+                scrollDirection,
+                baseDelta
+            } = computeScrollMetrics(lastScrollY, lastProgress);
+
+            // 2. Path slope
+            const { point, slopeFactor } =
+                computeSlopeFactor(pathEl, pathLength, lastProgress);
+
+            // 3. Band + viewport mapping
+            const band = computeViewportBand();
+            const viewportY = mapPathYToViewportY(point.y);
+            const edgeFactor = computeEdgeFactor(viewportY, band, scrollDirection);
+
+            // 4. Adjusted progress
+            const multiplier = computeSpeedMultiplier(slopeFactor, edgeFactor);
+            const adjustedProgress = clamp01(lastProgress + baseDelta * multiplier);
+            const progressDelta = adjustedProgress - lastProgress;
+            const progressDeltaAbs = Math.abs(progressDelta);
+            const progressDirection = progressDelta >= 0 ? "forward" : "backward";
+
+            // 5. Oscillation detection
+            const oscillation =
+                lastProgressDirection &&
+                progressDirection !== lastProgressDirection;
+
+            if (oscillation) {
+                oscillationCount++;
+                jitterHistory.push(progressDeltaAbs);
+                if (jitterHistory.length > 10) jitterHistory.shift();
+            }
+
+            lastProgressDirection = progressDirection;
+
+            // 6. Path fidelity for new progress
+            const pathLen = pathLength * adjustedProgress;
+            const newPt = pathEl.getPointAtLength(pathLen);
+
+            // 7. Easing
+            if (lastX === null) lastX = newPt.x;
+            if (lastY === null) lastY = newPt.y;
+
+            const easedX = lastX + (newPt.x - lastX) * 0.15;
+            const easedY = lastY + (newPt.y - lastY) * 0.15;
+
+            // 8. Anchoring blend
+            const anchoredY =
+                band.bandTop + scrollProgress * (band.bandBottom - band.bandTop);
+
+            const finalYUsed = anchoredY * 0.7 + easedY * 0.3;
+
+            const rawVsAnchoredDiff = finalYUsed - anchoredY;
+            diffHistory.push(rawVsAnchoredDiff);
+            if (diffHistory.length > 10) diffHistory.shift();
+
+            // 9. Efficiency metrics
+            cumulativeScrollDelta += Math.abs(scrollDelta);
+            cumulativeProgressDeltaAbs += progressDeltaAbs;
+
+            // 10. Build flowing segment
+            const endLen = pathLen;
+            const startLen = Math.max(0, endLen - segmentLength);
+            const startPt = pathEl.getPointAtLength(startLen);
+            const endPt = pathEl.getPointAtLength(endLen);
+
+            const startViewportY = mapPathYToViewportY(startPt.y);
+            const endViewportY = mapPathYToViewportY(endPt.y);
+
+            const segmentPathD =
+                `M ${startPt.x} ${startViewportY} L ${endPt.x} ${endViewportY}`;
+
+            tracerSegment.setAttribute('d', segmentPathD);
+
+            // 11. Update state
+            lastProgress = adjustedProgress;
+            lastScrollY = scrollY;
+            lastX = easedX;
+            lastY = easedY;
+        });
+    }
+
+    //--------------------------------------------------------
+    // see tracer.js
+
+
+  </script>
+
+<script src="./ani-scroll-tracer-motifs/tracer-vs-claude-7.js"></script>
+
+
+<script>
+
+    /*
+
+start of motif
+showPointAtPercent(0.09)
+ani-scroll-tracer-motifs-2.html:4317 percent: 0.09 point:
+SVGPoint {x: 304, y: 386.62115478515625}
+x
+:
+304
+y
+:
+386.62115478515625
+
+end of motif
+showPointAtPercent(0.31)
+ani-scroll-tracer-motifs-2.html:4317 percent: 0.31 point:
+SVGPoint {x: 16.000015258789062, y: 416.5711669921875}
+x
+:
+16.000015258789062
+y
+:
+416.5711669921875
+
+
+L
+3184.679443359375
+motifStartLen
+286.62114990234375
+motifEndLen
+987.2506274414062
+
+     */
+    function logPointAtPercent(pathEl, percent) {
+
+        // const pathEl = document.getElementById("deco-path");
+
+        const L = pathEl.getTotalLength();
+        const p = pathEl.getPointAtLength(L * percent);
+        console.log("percent:", percent, "length:", L * percent, "point:", p);
+    }
+
+    function showPointAtPercent(percent) {
+
+        const pathEl = document.getElementById("deco-path");
+
+        const L = pathEl.getTotalLength();
+        const p = pathEl.getPointAtLength(L * percent);
+
+        // Move the visible probe dot
+        const probe = document.getElementById("probe");
+        probe.setAttribute("cx", p.x);
+        probe.setAttribute("cy", p.y);
+
+        // Also log for reference
+        console.log("percent:", percent, "point:", p);
+    }
+
+    function showMotifFidelity() {
+
+        const pathEl = document.getElementById("deco-path");
+        const tracerEl = document.getElementById("tracer-test");
+        const L = pathEl.getTotalLength();
+        const motifStartLen = L * 0.09;
+        const motifEndLen = L * 0.31;
+        const samples = 40;
+        const step = (motifEndLen - motifStartLen) / (samples - 1);
+        const d = [];
+        for (let i = 0; i < samples; i++) {
+            const len = motifStartLen + i * step;
+            const p = pathEl.getPointAtLength(len);
+            d.push(i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`);
+        }
+        tracerEl.setAttribute("d", d.join(" "));
+
+    }
+
+
+</script>
+
+</body>
+</html>
